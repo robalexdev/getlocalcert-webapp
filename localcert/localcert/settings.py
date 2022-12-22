@@ -10,20 +10,28 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
+import os
+
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+##
+## Settings from environmental variables
+##
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
+SECRET_KEY = os.environ['LOCALCERT_DJANGO_SECRET_KEY']
+# Key rotation, keep these for only a short time
+SECRET_KEY_FALLBACKS = []
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-_d8$*rww!io!0)(3ovk05(wfm#bt)sxbdbbqlw=_c=va0f=qs+'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+GITHUB_CLIENT_ID = os.environ['LOCALCERT_GITHUB_CLIENT_ID']
+GITHUB_SECRET = os.environ['LOCALCERT_GITHUB_SECRET']
+
+
+DEBUG = os.environ.get("LOCALCERT_DEBUG", "False") == "True"
+
 
 ALLOWED_HOSTS = []
 
@@ -37,7 +45,26 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # Needed for django-allauth
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    # Only permit GitHub
+    'allauth.socialaccount.providers.github',
 ]
+
+SITE_ID = 1
+
+SOCIALACCOUNT_PROVIDERS = {
+    'github': {
+        'APP': {
+            'client_id': GITHUB_CLIENT_ID,
+            'secret': GITHUB_SECRET,
+        }
+    }
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -121,3 +148,15 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Authentication
+# https://django-allauth.readthedocs.io/en/latest/installation.html
+
+AUTHENTICATION_BACKENDS = [
+    # Disable login via username, OAuth flow only
+    #'django.contrib.auth.backends.ModelBackend',
+
+    # `allauth` specific authentication methods, such as login by e-mail
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
