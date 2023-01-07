@@ -1,0 +1,10 @@
+<p>
+<form action="{% url 'add_subdomain' domain_name=domain_name %}" method="post">
+{% csrf_token %}
+<label for="subdomain"></label>
+<input type="text" id="subdomain" name="subdomain">
+.{{ domain_name }}.localcert.net
+<br />
+<input type="submit" value="Add a domain">
+</form>
+</p>

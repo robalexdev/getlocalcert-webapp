@@ -1,0 +1,47 @@
+<style>
+    input[type="text"] {
+        width: 60em;
+    }
+    input:read-only {
+        background-color: #e4e4e4;
+    }
+</style>
+
+<h4>Create Record</h4>
+
+<p>
+localcert.net only support TXT records for ACME DNS-01 challenges.
+</p>
+
+<p>
+You may manually set your challenge response here, or check the <a href="TODO">docs</a> to configure your ACME client to automate issuance and renewals.
+</p>
+
+<form
+    style="padding: 3em;"
+    action="{% url 'create_resource_record' subdomain_id=subdomain.id %}"
+    method="post">
+{% csrf_token %}
+
+<p>
+<label>Record</label>
+<br />
+<input type="text" value="_acme-challenge.{{ subdomain.name }}.{{ domain.name }}.localcert.net" readonly>
+</p>
+
+<p>
+<label>Record Type</label>
+<br />
+<input type="text" value="TXT" readonly>
+</p>
+
+<p>
+<label for="value">Record Value</label>
+<br />
+<input type="text" name="value" id="value" style="width: 60em">
+</p>
+
+<p>
+<input type="submit" value="Create Record">
+</p>
+</form>

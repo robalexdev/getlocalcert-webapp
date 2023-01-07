@@ -1,0 +1,68 @@
+<style>
+    table td, table th {
+        padding: 2em;
+    }
+</style>
+
+<h3>Subdomains for {{ domain.name }}.localcert.net</h3>
+
+{% if subdomains %}
+<table>
+    {% for subdomain in subdomains %}
+    <tr>
+        <!-- TODO fix this for the root of the domain -->
+        <td>
+            <a href="https://{{ subdomain.name }}.{{ domain.name }}.localcert.net">{{ subdomain.name }}{{ domain.name }}.localcert.net</a>
+            <br />
+            <small>Created {{ subdomain.created }}</small>
+        </td>
+        <td><a href="{% url 'describe_subdomain' subdomain_id=subdomain.id %}">Manage</a></td>
+    </tr>
+    {% endfor %}
+</table>
+
+{% else %}
+<h4>{{ domain.name }}.localcert.net doesn't have any subdomains</h4>
+{% endif %}
+
+{% if subdomains|length < 3 %}
+<form
+action="{% url 'add_subdomain' domain_id=domain.id %}"
+style="margin: 4em 2em 4em;"
+method="post">
+{% csrf_token %}
+{{ form }}
+<label for="subdomain">Add a subdomain</label>
+<br />
+<input type="text" id="subdomain" name="subdomain">.{{ domain.name }}.localcert.net
+<br />
+<input type="submit" value="Create">
+</form>
+{% endif %}
+
+<p>
+<i>Domain active since {{domain.created}}</i>
+</p>
+
+<hr style="margin: 4em 0em 4em;">
+
+<p>
+The free tier allows you to create up to <b>three subdomains</b>.
+This matches the certificate limits of <a href="TODO link here">ZeroSSL</a>'s Free plan.
+You may try to use Let's Encrypt, although our domain is currently limited to 50 certificates per week <i>shared across all users</i>, so this may not work for you.
+</p>
+
+<p>
+In the short term, if you need more than three certificates purchase a Basic <a href="TODO link here">ZeroSSL</a> account and <a href="TODO contact">Contact Us</a>.
+</p>
+
+<p>
+Once our Let's Encrypt limit has increased, we will greatly increase the subdomain limits for our free tier customers.
+Thank you for your patience.
+</p>
+
+<p><i>
+Referral notice: The ZeroSSL links above contain affiliate codes, and we receive a commission if you subscribe using our links.
+ZeroSSL is a great service for customers needing additional certificates beyond what Let's Encrypt offers.
+Any commissions we receive help us offset hosting costs for our free tier.
+</i></p>

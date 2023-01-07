@@ -1,0 +1,19 @@
+<h4>
+Are you sure you want to delete this DNS record?
+</h4>
+
+<p><ul>
+    <li>
+        _acme-challenge.{{ subdomain.name }}.{{ domain.name }}.localcert.net => {{ record.value }}
+    </li>
+    <li>
+        This record was created: {{ record.created }}
+    </li>
+</ul></p>
+
+<form
+    action="{% url 'delete_resource_record' record_id=record.id %}"
+    method="post">
+{% csrf_token %}
+<input type="submit" value="Delete Record">
+</form>

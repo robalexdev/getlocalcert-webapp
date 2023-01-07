@@ -1,0 +1,29 @@
+<h4>
+Are you sure you want to delete this API Key?
+</h4>
+
+<p><ul>
+    <li>
+        Key ID: {{ targetKey.id_str }}
+    </li>
+    <li>
+        This key is associated with <a href="{{ subdomain.name }}.{{ domain.name }}.localcert.net">{{ subdomain.name }}.{{ domain.name }}.localcert.net</a>.
+    </li>
+    <li>
+        This key was created: {{ targetKey.created }}
+    </li>
+    <li>
+        {% if targetKey.last_used %}
+            This key was last used: {{ targetKey.last_used }}
+        {% else %}
+            This key was never used.
+        {% endif %}
+    </li>
+</ul></p>
+
+<form
+    action="{% url 'delete_api_key' keyId=targetKey.id_str %}"
+    method="post">
+{% csrf_token %}
+<input type="submit" value="Delete Key">
+</form>

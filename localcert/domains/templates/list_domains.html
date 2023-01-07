@@ -1,0 +1,30 @@
+<style>
+  table th, table td {
+    padding: 2em;
+    border: 1px solid #aaa;
+  }
+</style>
+
+<h3>Domains</h3>
+
+<table>
+{% for domain in domains %}
+<tr>
+  <th>{{ domain.name }}.localcert.net</th>
+  <td><a href="{% url 'describe_domain' domain_id=domain.id %}">Manage</a></td>
+</tr>
+{% endfor %}
+</table>
+
+{% if domains|length < domain_limit %}
+
+<form
+    action="{% url 'create_free_domain' %}"
+    method="post">
+{% csrf_token %}
+<input type="submit" value="Create Free Domain">
+</form>
+
+
+{% endif %}
+

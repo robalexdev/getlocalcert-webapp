@@ -1,0 +1,36 @@
+<p>
+    Here's some things to try
+    <ul>
+        <li>Generate a Let's Encrypt certificate for your domain</li>
+        <ul>
+            <li>You can use your certificate for testing HTTPS on localhost</li>
+            <li>You can create additional subdomains as you'd like, each with their own certificate</li>
+            <li>You can create a wildcard certificate for your domain
+        </ul>
+        <li>Edit your /etc/hosts to setup private routing</li>
+        <li>Configure your router, personal DNS server, or corporate DNS server to route these domains</li>
+    </ul>
+</p>
+
+<p>
+    Keep in mind the following limits of this service:
+    <ul>
+        <li>You can only set TXT records for _acme-challenge</li>
+        <ul>
+            <li>This will allow Let's Encrypt and similar Certificate Authorities to validate your ownership</li>
+        </ul>
+        <li>You can't add A, AAAA, MX, NS, CNAME, or any other record types on the global DNS</li>
+        <ul>
+            <li>You can set these entries on any private DNS server you operate, but these won't be assessible from the Internet</li>
+        </ul>
+    </ul>
+</p>
+
+<p>
+    Intended use cases:
+    <ul>
+        <li>Testing HTTPS on localhost</li>
+        <li>Avoid the use of self-signed certificates or custom Certificate Authorities on internal networks</li>
+        <li>Minimizing costs through free tier offering</li>
+    </ul>
+</p>

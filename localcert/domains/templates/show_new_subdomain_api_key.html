@@ -1,0 +1,46 @@
+<style>
+
+table {
+    margin: 4em;
+}
+
+table th, table td {
+  padding: 0.6em;
+  border: 1px solid #000;
+}
+</style>
+
+<h3>API Key Created</h3>
+
+<p>
+Please save the following API key pair in a safe location.
+</p>
+
+<p>
+The following API key pair has scoped access to allow setting a DNS TXT record for {{ subdomain.name }}.{{ domain.name }}.localcert.net.
+</p>
+
+<table>
+    <tr>
+        <th>Record</th>
+        <th>Key ID</th>
+        <th>Secret Key</th>
+    </tr>
+    <tr>
+        <td>{{ subdomain.name }}.{{ domain.name }}.localcert.net</td>
+        <td>{{ secretKeyId }}</td>
+        <td>{{ secretKey }}</td>
+    </tr>
+</table>
+
+<p>
+This is the only time the key pair will be shown. You can recreate the key later if needed.
+</p>
+
+<p>
+Read the <a href="TODO">docs</a> for information on using your API key pair.
+</p>
+
+<p>
+<a href="{% url 'describe_subdomain' subdomain_id=subdomain.id %}">Continue</a>
+</p>
