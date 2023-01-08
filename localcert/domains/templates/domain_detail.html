@@ -1,8 +1,12 @@
+{% include "page_start.html" %}
+
 <style>
     table td, table th {
         padding: 2em;
     }
 </style>
+
+{% include "page_head_end.html" %}
 
 <h3>Subdomains for {{ domain.name }}.localcert.net</h3>
 
@@ -66,3 +70,5 @@ Referral notice: The ZeroSSL links above contain affiliate codes, and we receive
 ZeroSSL is a great service for customers needing additional certificates beyond what Let's Encrypt offers.
 Any commissions we receive help us offset hosting costs for our free tier.
 </i></p>
+
+{% include "page_end.html" %}

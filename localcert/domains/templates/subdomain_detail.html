@@ -1,3 +1,5 @@
+{% include "page_start.html" %}
+
 <style>
     table td {
         border: 2px solid #eee;
@@ -8,6 +10,8 @@
         margin-top: 5em;
     }
 </style>
+
+{% include "page_head_end.html" %}
 
 <h3>DNS Records for {{ subdomain.name }}.{{ domain.name }}.localcert.net</h3>
 
@@ -35,9 +39,11 @@
   <i>No DNS records exist for this subdomain.</i>
 {% endif %}
 
+{% if can_add_records %}
 <p>
 <a href="{% url 'create_resource_record' subdomain_id=subdomain.id %}">Add Record</a>
 </p>
+{% endif %}
 
 <h4>API Keys</h4>
 
@@ -106,3 +112,5 @@ For example:
 {% csrf_token %}
 <input type="submit" value="Delete Subdomain">
 </form>
+
+{% include "page_end.html" %}

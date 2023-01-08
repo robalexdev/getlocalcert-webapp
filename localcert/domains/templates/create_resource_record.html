@@ -1,3 +1,5 @@
+{% include "page_start.html" %}
+
 <style>
     input[type="text"] {
         width: 60em;
@@ -6,6 +8,8 @@
         background-color: #e4e4e4;
     }
 </style>
+
+{% include "page_head_end.html" %}
 
 <h4>Create Record</h4>
 
@@ -45,3 +49,5 @@ You may manually set your challenge response here, or check the <a href="TODO">d
 <input type="submit" value="Create Record">
 </p>
 </form>
+
+{% include "page_end.html" %}

@@ -38,6 +38,8 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    # Debug Toolbar
+    # "debug_toolbar",
     "domains.apps.DomainsConfig",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -66,6 +68,8 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 
 MIDDLEWARE = [
+    # Debug Toolbar
+    # "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -157,3 +161,16 @@ AUTHENTICATION_BACKENDS = [
     # `allauth` specific authentication methods, such as login by e-mail
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
+
+
+INTERNAL_IPS = [
+    # Debug Toolbar
+    # "127.0.0.1",
+]
+
+
+# App specific settings
+LOCALCERT_DOMAIN_LIMIT = 3
+LOCALCERT_SUBDOMAIN_LIMIT = 3
+LOCALCERT_API_KEYS_PER_SUBDOMAIN_LIMIT = 2
+LOCALCERT_RECORDS_PER_SUBDOMAIN_LIMIT = 5

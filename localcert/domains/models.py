@@ -1,10 +1,11 @@
 import string
 import secrets
-import hashlib
 import uuid
+from .utils import hash_secret_key
 
 from django.db import models
 from django.conf import settings
+from django.db.utils import IntegrityError
 
 
 class Domain(models.Model):
@@ -32,7 +33,7 @@ class Domain(models.Model):
     updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.get_name()
+        return self.name
 
 
 class DomainNameHelper(models.Model):
@@ -54,7 +55,6 @@ def generate_domain_from_int(i: int) -> str:
     label = ""
     while True:
         label = DOMAIN_LABEL_CHARS[i % len(DOMAIN_LABEL_CHARS)] + label
-        print("   ", label)
         i = i // len(DOMAIN_LABEL_CHARS)
         if i < 1:
             break
@@ -83,6 +83,16 @@ class Subdomain(models.Model):
     )
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["name", "domain"], name="unique_name_domain"
+            ),
+        ]
+
+    def __str__(self):
+        return self.name + "." + self.domain.name
 
 
 class RecordApiKey(models.Model):
@@ -125,11 +135,12 @@ class CreateSubdomainResult:
 
 
 def create_subdomain(domain: Domain, name: str) -> CreateSubdomainResult:
-    subdomain, created = Subdomain.objects.get_or_create(
-        name=name,
-        domain=domain,
-    )
-    if not created:
+    try:
+        subdomain = Subdomain.objects.create(
+            name=name,
+            domain=domain,
+        )
+    except IntegrityError:
         return None
 
     # add a key
@@ -139,31 +150,13 @@ def create_subdomain(domain: Domain, name: str) -> CreateSubdomainResult:
 
 def create_record_api_key(subdomain: Subdomain) -> tuple[RecordApiKey, str]:
     secretKey = secrets.token_hex()
-    digest = hashlib.sha256()
-    digest.update(secretKey.encode("utf-8"))
-    hashOfSecretKey = digest.hexdigest()
+    hashOfSecretKey = hash_secret_key(secretKey)
 
     keyObject = RecordApiKey.objects.create(
         hashedValue=hashOfSecretKey,
         subdomain=subdomain,
     )
 
-    return keyObject, secretKey
-
-
-def change_subdomain_api_key(
-    subdomain: Subdomain, is_first_key: bool
-) -> tuple[RecordApiKey, str]:
-    keyObject, secretKey = create_record_api_key()
-    if is_first_key:
-        if subdomain.apiKeyOne:
-            subdomain.apiKeyOne.delete()
-        subdomain.apiKeyOne = keyObject
-    else:
-        if subdomain.apiKeyTwo:
-            subdomain.apiKeyTwo.delete()
-        subdomain.apiKeyTwo = keyObject
-    subdomain.save()
     return keyObject, secretKey
 
 

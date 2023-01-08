@@ -9,6 +9,7 @@ from django.http import (
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.db.models import Prefetch
+from django.views.decorators.http import require_http_methods, require_GET, require_POST
 
 from .models import (
     Domain,
@@ -20,11 +21,10 @@ from .models import (
     create_record_api_key,
 )
 
-
-DOMAIN_LIMIT = 3
-SUBDOMAIN_LIMIT = 3
+from django.conf import settings
 
 
+@require_GET
 @login_required
 def list_domains(request: HttpRequest) -> HttpResponse:
     domains = (
@@ -46,18 +46,19 @@ def list_domains(request: HttpRequest) -> HttpResponse:
         "list_domains.html",
         {
             "domains": domains,
-            "domain_limit": DOMAIN_LIMIT,
+            "domain_limit": settings.LOCALCERT_DOMAIN_LIMIT,
         },
     )
 
 
+@require_POST
 @login_required
 def create_free_domain(request: HttpRequest) -> HttpResponse:
     domain_count = Domain.objects.filter(
         owner=request.user,
     ).count()
 
-    if domain_count >= DOMAIN_LIMIT:
+    if domain_count >= settings.LOCALCERT_DOMAIN_LIMIT:
         return HttpResponseBadRequest("Domain limit already reached")
 
     newName = DomainNameHelper.objects.create()
@@ -70,9 +71,11 @@ def create_free_domain(request: HttpRequest) -> HttpResponse:
 
     return redirect(
         "describe_domain",
+        domain_id=newDomain.id,
     )
 
 
+@require_GET
 @login_required
 def describe_domain(request: HttpRequest, domain_id: str) -> HttpResponse:
     domain_list = Domain.objects.filter(
@@ -101,6 +104,7 @@ def describe_domain(request: HttpRequest, domain_id: str) -> HttpResponse:
     )
 
 
+@require_GET
 @login_required
 def describe_subdomain(request: HttpRequest, subdomain_id: str) -> HttpResponse:
     if request.method != "GET":
@@ -134,15 +138,15 @@ def describe_subdomain(request: HttpRequest, subdomain_id: str) -> HttpResponse:
             "subdomain": subdomain,
             "apiKeys": apiKeys,
             "records": records,
+            "can_add_records": len(records)
+            < settings.LOCALCERT_RECORDS_PER_SUBDOMAIN_LIMIT,
         },
     )
 
 
+@require_POST
 @login_required
 def delete_subdomain(request: HttpRequest, subdomain_id: str) -> HttpResponse:
-    if request.method != "POST":
-        return HttpResponseBadRequest("Must use POST")
-
     subdomain_list = Subdomain.objects.filter(pk=subdomain_id,).prefetch_related(
         "domain__owner",
     )
@@ -165,11 +169,9 @@ def delete_subdomain(request: HttpRequest, subdomain_id: str) -> HttpResponse:
     )
 
 
+@require_POST
 @login_required
 def add_subdomain(request: HttpRequest, domain_id: str) -> HttpResponse:
-    if request.method != "POST":
-        return HttpResponseBadRequest("Must use HTTP POST")
-
     domain_list = Domain.objects.filter(
         owner=request.user,
         pk=domain_id,
@@ -185,18 +187,19 @@ def add_subdomain(request: HttpRequest, domain_id: str) -> HttpResponse:
     domain = domain_list[0]
 
     subdomains = [_ for _ in domain.subdomains.all()]
-    if len(subdomains) >= SUBDOMAIN_LIMIT:
+    if len(subdomains) >= settings.LOCALCERT_SUBDOMAIN_LIMIT:
         return HttpResponseBadRequest(
             "Cannot create more subdomains, subdomain limit reached."
         )
 
+    # TODO: lots of input validation
     subdomain_name = request.POST["subdomain"]
 
     # TODO check valid label
 
     result = create_subdomain(domain=domain, name=subdomain_name)
     if result is None:
-        return HttpResponse("Subdomain already exists")
+        return HttpResponseBadRequest("Subdomain already exists")
 
     return render(
         request,
@@ -210,6 +213,7 @@ def add_subdomain(request: HttpRequest, domain_id: str) -> HttpResponse:
     )
 
 
+@require_http_methods(["GET", "POST"])
 @login_required
 def delete_api_key(request: HttpRequest, keyId: str) -> HttpResponse:
     api_key_list = RecordApiKey.objects.filter(pk=keyId,).prefetch_related(
@@ -234,7 +238,7 @@ def delete_api_key(request: HttpRequest, keyId: str) -> HttpResponse:
             "describe_subdomain",
             subdomain_id=str(subdomain.id),
         )
-    elif request.method == "GET":
+    else:
         return render(
             request,
             "confirm_api_key_delete.html",
@@ -244,10 +248,9 @@ def delete_api_key(request: HttpRequest, keyId: str) -> HttpResponse:
                 "targetKey": apiKey,
             },
         )
-    else:
-        return HttpResponseBadRequest("GET or POST only")
 
 
+@require_POST
 @login_required
 def create_api_key(request: HttpRequest, subdomain_id: str) -> HttpResponse:
     subdomain_list = Subdomain.objects.filter(pk=subdomain_id,).prefetch_related(
@@ -267,7 +270,7 @@ def create_api_key(request: HttpRequest, subdomain_id: str) -> HttpResponse:
         # permission error, pretend the key doesn't exist
         raise Http404("Key not found")
 
-    if subdomain.apiKeys.count() >= 2:
+    if subdomain.apiKeys.count() >= settings.LOCALCERT_API_KEYS_PER_SUBDOMAIN_LIMIT:
         return HttpResponseBadRequest("Cannot create additional keys, limit reached")
 
     createdKey, secretKey = create_record_api_key(subdomain)
@@ -283,13 +286,12 @@ def create_api_key(request: HttpRequest, subdomain_id: str) -> HttpResponse:
     )
 
 
+@require_http_methods(["GET", "POST"])
 @login_required
 def create_resource_record(request: HttpRequest, subdomain_id: str) -> HttpResponse:
-    if request.method not in ["POST", "GET"]:
-        return HttpResponseBadRequest("Use POST or GET")
-
     subdomain_list = Subdomain.objects.filter(pk=subdomain_id,).prefetch_related(
         "domain__owner",
+        "records",
     )
 
     subdomain_list = [_ for _ in subdomain_list]
@@ -303,6 +305,9 @@ def create_resource_record(request: HttpRequest, subdomain_id: str) -> HttpRespo
     if domain.owner != request.user:
         # permission issue, pretend the subdomain doesn't exist
         raise Http404("No such subdomain")
+
+    if subdomain.records.count() >= settings.LOCALCERT_RECORDS_PER_SUBDOMAIN_LIMIT:
+        return HttpResponseBadRequest("Cannot create additional records, limit reached")
 
     if request.method == "POST":
         value = request.POST["value"]
@@ -325,11 +330,9 @@ def create_resource_record(request: HttpRequest, subdomain_id: str) -> HttpRespo
         )
 
 
+@require_http_methods(["GET", "POST"])
 @login_required
 def delete_resource_record(request: HttpRequest, record_id: str) -> HttpResponse:
-    if request.method not in ["POST", "GET"]:
-        return HttpResponseBadRequest("Use POST or GET")
-
     record_list = Record.objects.filter(pk=record_id,).prefetch_related(
         "subdomain",
         "subdomain__domain",

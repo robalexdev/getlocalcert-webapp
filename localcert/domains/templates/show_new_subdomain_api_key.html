@@ -1,3 +1,5 @@
+{% include "page_start.html" %}
+
 <style>
 
 table {
@@ -9,6 +11,8 @@ table th, table td {
   border: 1px solid #000;
 }
 </style>
+
+{% include "page_head_end.html" %}
 
 <h3>API Key Created</h3>
 
@@ -27,9 +31,9 @@ The following API key pair has scoped access to allow setting a DNS TXT record f
         <th>Secret Key</th>
     </tr>
     <tr>
-        <td>{{ subdomain.name }}.{{ domain.name }}.localcert.net</td>
-        <td>{{ secretKeyId }}</td>
-        <td>{{ secretKey }}</td>
+        <td id="fqdn">{{ subdomain.name }}.{{ domain.name }}.localcert.net</td>
+        <td id="secretKeyId">{{ secretKeyId }}</td>
+        <td id="secretKey">{{ secretKey }}</td>
     </tr>
 </table>
 
@@ -44,3 +48,5 @@ Read the <a href="TODO">docs</a> for information on using your API key pair.
 <p>
 <a href="{% url 'describe_subdomain' subdomain_id=subdomain.id %}">Continue</a>
 </p>
+
+{% include "page_end.html" %}
