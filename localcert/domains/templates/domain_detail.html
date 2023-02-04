@@ -1,47 +1,65 @@
 {% include "page_start.html" %}
 
 <style>
-    table td, table th {
-        padding: 2em;
-    }
+  table th, table td {
+    padding: 1em;
+    border: 1px solid #aaa;
+  }
 </style>
 
 {% include "page_head_end.html" %}
 
-<h3>Subdomains for {{ domain.name }}.localcert.net</h3>
+<h3>Records for {{ domain.name }}</h3>
 
-{% if subdomains %}
 <table>
-    {% for subdomain in subdomains %}
     <tr>
-        <!-- TODO fix this for the root of the domain -->
-        <td>
-            <a href="https://{{ subdomain.name }}.{{ domain.name }}.localcert.net">{{ subdomain.name }}{{ domain.name }}.localcert.net</a>
-            <br />
-            <small>Created {{ subdomain.created }}</small>
-        </td>
-        <td><a href="{% url 'describe_subdomain' subdomain_id=subdomain.id %}">Manage</a></td>
+        <th>rrname</th>
+        <th>TTL</th>
+        <th>type</th>
+        <th>Content</th>
     </tr>
+    {% for rrset in rrsets %}
+    {% if rrset.type != "SOA" %}
+    <tr class="{{ rrset.type }}">
+        <td>
+            {{ rrset.name }}
+        </td>
+        <td>
+            {{ rrset.ttl }}
+        </td>
+        <td>
+            {{ rrset.type }}
+        </td>
+        <td>
+            <ul>
+            {% for record in rrset.records %}
+                <p>
+                {{ record.content }}
+                <form action="{% url 'modify_rrset' rr_name=rrset.name %}"
+                      method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="rr_type" value="TXT">
+                    <input type="hidden" name="rr_content" value="{{ record.content }}">
+                    <input type="hidden" name="edit_action" value="remove">
+                    <input 
+                      type="submit" 
+                      {% if rrset.type != "TXT" %}
+                        disabled
+                        title="Cannot delete"
+                      {% endif %}
+                      value="x">
+                </form>
+                </p>
+            {% endfor %}
+            </ul>
+        </td>
+    </tr>
+    {% endif %}
     {% endfor %}
 </table>
 
-{% else %}
-<h4>{{ domain.name }}.localcert.net doesn't have any subdomains</h4>
-{% endif %}
-
-{% if subdomains|length < 3 %}
-<form
-action="{% url 'add_subdomain' domain_id=domain.id %}"
-style="margin: 4em 2em 4em;"
-method="post">
-{% csrf_token %}
-{{ form }}
-<label for="subdomain">Add a subdomain</label>
-<br />
-<input type="text" id="subdomain" name="subdomain">.{{ domain.name }}.localcert.net
-<br />
-<input type="submit" value="Create">
-</form>
+{% if can_add_records %}
+<a href="{% url 'create_resource_record_page' zone_name=domain.name%}">Add Record</a>
 {% endif %}
 
 <p>

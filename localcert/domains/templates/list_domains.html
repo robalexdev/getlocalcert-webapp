@@ -12,15 +12,15 @@
 <h3>Domains</h3>
 
 <table>
-{% for domain in domains %}
+{% for zone in zones %}
 <tr>
-  <th>{{ domain.name }}.localcert.net</th>
-  <td><a href="{% url 'describe_domain' domain_id=domain.id %}">Manage</a></td>
+  <th>{{ zone.name }}</th>
+  <td><a href="{% url 'describe_zone' zone_name=zone.name%}">Manage</a></td>
 </tr>
 {% endfor %}
 </table>
 
-{% if domains|length < domain_limit %}
+{% if zones|length < domain_limit %}
 
 <form
     action="{% url 'create_free_domain' %}"

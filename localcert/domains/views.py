@@ -1,370 +1,214 @@
-from django.db.models import Q
+import logging
+
 from django.http import (
     HttpResponse,
     HttpRequest,
-    Http404,
-    HttpResponseServerError,
     HttpResponseBadRequest,
+    Http404,
 )
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
-from django.db.models import Prefetch
-from django.views.decorators.http import require_http_methods, require_GET, require_POST
+from django.views.decorators.http import require_GET, require_POST
+
+from .utils import validate_acme_dns01_txt_value, ACME_CHALLENGE_LABEL
 
 from .models import (
-    Domain,
+    Zone,
     DomainNameHelper,
-    Subdomain,
-    Record,
-    RecordApiKey,
-    create_subdomain,
-    create_record_api_key,
 )
+from .pdns import (
+    pdns_create_zone,
+    pdns_replace_rrset,
+    pdns_describe_domain,
+    pdns_delete_rrset,
+)
+
+from .decorators import require_zone_access, use_custom_errors
 
 from django.conf import settings
 
 
+@use_custom_errors
 @require_GET
 @login_required
-def list_domains(request: HttpRequest) -> HttpResponse:
-    domains = (
-        Domain.objects.filter(
-            owner=request.user,
-        )
-        .order_by(
-            "created",
-        )
-        .prefetch_related(
-            "subdomains",
-        )
+def list_zones(request: HttpRequest) -> HttpResponse:
+    zones = Zone.objects.filter(owner=request.user,).order_by(
+        "name",
     )
 
-    domains = [_ for _ in domains]
+    zones = [_ for _ in zones]
 
     return render(
         request,
         "list_domains.html",
         {
-            "domains": domains,
+            "zones": zones,
             "domain_limit": settings.LOCALCERT_DOMAIN_LIMIT,
         },
     )
 
 
+@use_custom_errors
 @require_POST
 @login_required
 def create_free_domain(request: HttpRequest) -> HttpResponse:
-    domain_count = Domain.objects.filter(
+    zone_count = Zone.objects.filter(
         owner=request.user,
     ).count()
 
-    if domain_count >= settings.LOCALCERT_DOMAIN_LIMIT:
+    if zone_count >= settings.LOCALCERT_DOMAIN_LIMIT:
         return HttpResponseBadRequest("Domain limit already reached")
 
-    newName = DomainNameHelper.objects.create()
-    newDomain = Domain.objects.create(
-        name=newName.get_name(),
+    zone_name = DomainNameHelper.objects.create().get_name() + ".localhostcert.net."
+
+    pdns_create_zone(zone_name)
+
+    # localhostcert.net has predefined A records locked to localhost
+    records = [{"content": "127.0.0.1", "disabled": False}]
+    pdns_replace_rrset(zone_name, zone_name, "A", 3600, records)
+
+    # Create domain in DB
+    # TODO: catch error?
+    newZone = Zone.objects.create(
+        name=zone_name,
         owner=request.user,
     )
+
+    logging.info(f"Created domain {newZone.name} for user {request.user.id}")
 
     # TODO success message
-
     return redirect(
-        "describe_domain",
-        domain_id=newDomain.id,
+        "describe_zone",
+        zone_name=newZone.name,
     )
 
 
+@use_custom_errors
 @require_GET
 @login_required
-def describe_domain(request: HttpRequest, domain_id: str) -> HttpResponse:
-    domain_list = Domain.objects.filter(
-        pk=domain_id,
-        owner=request.user,
-    ).prefetch_related(
-        "subdomains",
-    )
+@require_zone_access(zonekw="zone_name")
+def describe_zone(
+    request: HttpRequest, validated_zone: Zone, zone_name: str
+) -> HttpResponse:
+    details = pdns_describe_domain(validated_zone.name)
 
-    domain_list = [_ for _ in domain_list]
-    if not domain_list:
-        raise Http404("Domain does not exist, or you are not the owner")
-    if len(domain_list) > 1:
-        return HttpResponseServerError("Unable to process request")
-
-    domain = domain_list[0]
-    subdomains = [_ for _ in domain.subdomains.all()]
+    txt_records = [rrset for rrset in details["rrsets"] if rrset["type"] == "TXT"]
+    if len(txt_records) == 0:
+        can_add_records = True
+    elif len(txt_records) == 1:
+        record_count = len(txt_records[0]["records"])
+        can_add_records = record_count < settings.LOCALCERT_TXT_RECORDS_PER_RRSET_LIMIT
+    else:
+        # TODO: eventually support subdomains
+        assert False, "Expected only one TXT rrset per domain"
 
     return render(
         request,
         "domain_detail.html",
         {
-            "domain": domain,
-            "subdomains": subdomains,
+            "domain": validated_zone,
+            "rrsets": details["rrsets"],
+            "can_add_records": can_add_records,
         },
     )
 
 
+@use_custom_errors
 @require_GET
 @login_required
-def describe_subdomain(request: HttpRequest, subdomain_id: str) -> HttpResponse:
-    if request.method != "GET":
-        return HttpResponseBadRequest("Must use HTTP GET")
-
-    subdomain_list = Subdomain.objects.filter(pk=subdomain_id,).prefetch_related(
-        "domain",
-        "domain__owner",
-        "apiKeys",
-        "records",
-    )
-
-    if not subdomain_list:
-        raise Http404("Subdomain does not exist")
-    if len(subdomain_list) > 1:
-        return HttpResponseServerError("Unable to process request")
-
-    subdomain = subdomain_list[0]
-    domain = subdomain.domain
-    if domain.owner != request.user:
-        # permission error, pretend the subdomain doesn't exist
-        raise Http404("Subdomain does not exist")
-
-    records = [_ for _ in subdomain.records.all()]
-    apiKeys = [_ for _ in subdomain.apiKeys.all()]
+@require_zone_access(zonekw="zone_name")
+def create_resource_record_page(
+    request: HttpRequest, zone_name: str, validated_zone: Zone
+) -> HttpResponse:
     return render(
         request,
-        "subdomain_detail.html",
+        "create_resource_record.html",
         {
-            "domain": domain,
-            "subdomain": subdomain,
-            "apiKeys": apiKeys,
-            "records": records,
-            "can_add_records": len(records)
-            < settings.LOCALCERT_RECORDS_PER_SUBDOMAIN_LIMIT,
+            "domain": validated_zone,
         },
     )
 
 
+@use_custom_errors
 @require_POST
 @login_required
-def delete_subdomain(request: HttpRequest, subdomain_id: str) -> HttpResponse:
-    subdomain_list = Subdomain.objects.filter(pk=subdomain_id,).prefetch_related(
-        "domain__owner",
-    )
-
-    if not subdomain_list:
-        raise Http404("Subdomain does not exist")
-    if len(subdomain_list) > 1:
-        return HttpResponseServerError("Unable to process request")
-
-    subdomain = subdomain_list[0]
-    domain = subdomain.domain
-    if domain.owner != request.user:
-        # permission error, pretend the subdomain doesn't exist
-        raise Http404("Subdomain does not exist")
-
-    subdomain.delete()
-    return redirect(
-        "describe_domain",
-        domain_id=domain.id,
-    )
-
-
-@require_POST
-@login_required
-def add_subdomain(request: HttpRequest, domain_id: str) -> HttpResponse:
-    domain_list = Domain.objects.filter(
-        owner=request.user,
-        pk=domain_id,
-    ).prefetch_related(
-        "subdomains",
-    )
-
-    if not domain_list:
-        raise Http404("Domain does not exist, or you are not the owner")
-    if len(domain_list) > 1:
-        return HttpResponseServerError("Unable to process request")
-
-    domain = domain_list[0]
-
-    subdomains = [_ for _ in domain.subdomains.all()]
-    if len(subdomains) >= settings.LOCALCERT_SUBDOMAIN_LIMIT:
+@require_zone_access(zonekw="rr_name", isTXT=True)
+def modify_rrset(
+    request: HttpRequest, rr_name: str, validated_zone: Zone
+) -> HttpResponse:
+    try:
+        rr_type = request.POST["rr_type"]
+        rr_content = request.POST["rr_content"]
+        edit_action = request.POST["edit_action"]
+    except KeyError as e:
         return HttpResponseBadRequest(
-            "Cannot create more subdomains, subdomain limit reached."
+            "Incomplete request: " + str(e) + " " + str(request.POST) + "!"
         )
 
-    # TODO: lots of input validation
-    subdomain_name = request.POST["subdomain"]
+    # Validate input
+    if rr_type == "A":
+        return HttpResponse("Unauthorized", status=401)
+    elif rr_type != "TXT":
+        return HttpResponseBadRequest("Unsupported record type")
 
-    # TODO check valid label
+    if edit_action not in ["add", "remove"]:
+        return HttpResponseBadRequest("Unsupported edit action")
 
-    result = create_subdomain(domain=domain, name=subdomain_name)
-    if result is None:
-        return HttpResponseBadRequest("Subdomain already exists")
+    zone_acme_challenge_rr_name = f"{ACME_CHALLENGE_LABEL}.{validated_zone.name}"
+    if rr_name != zone_acme_challenge_rr_name:
+        return HttpResponseBadRequest(
+            f"Only {zone_acme_challenge_rr_name} can be modified"
+        )
 
-    return render(
-        request,
-        "show_new_subdomain_api_key.html",
-        {
-            "domain": domain,
-            "subdomain": result.subdomain,
-            "secretKeyId": result.keyObject.id,
-            "secretKey": result.secretKey,
-        },
-    )
+    validate_acme_dns01_txt_value(rr_content)
 
+    details = pdns_describe_domain(validated_zone.name)
 
-@require_http_methods(["GET", "POST"])
-@login_required
-def delete_api_key(request: HttpRequest, keyId: str) -> HttpResponse:
-    api_key_list = RecordApiKey.objects.filter(pk=keyId,).prefetch_related(
-        "subdomain__domain__owner",
-    )
+    # Wrap in quotes
+    rr_content = f'"{rr_content}"'
 
-    if not api_key_list:
-        raise Http404("Cannot find key")
-    if len(api_key_list) > 1:
-        return HttpResponseServerError("Cannot process request")
-    apiKey = api_key_list[0]
-    subdomain = apiKey.subdomain
+    if details["rrsets"]:
+        for rrset in details["rrsets"]:
+            if rrset["name"] == rr_name and rrset["type"] == rr_type:
+                # found it
+                target_rrset = rrset["records"]
+                break
+        else:
+            target_rrset = []
+    else:
+        target_rrset = []
 
-    if subdomain.domain.owner != request.user:
-        # permission error, pretend the key doesn't exist
-        raise Http404("Cannot find key")
-
-    if request.method == "POST":
-        apiKey.delete()
-        # TODO message about delete success
-        return redirect(
-            "describe_subdomain",
-            subdomain_id=str(subdomain.id),
+    if edit_action == "add":
+        if len(target_rrset) >= settings.LOCALCERT_TXT_RECORDS_PER_RRSET_LIMIT:
+            return HttpResponseBadRequest(
+                "Limit exceeded, unable to add additional TXT records. Try deleting unneeded records."
+            )
+        target_rrset.append(
+            {
+                "content": rr_content,
+                "disabled": False,
+            }
         )
     else:
-        return render(
-            request,
-            "confirm_api_key_delete.html",
-            {
-                "domain": subdomain.domain,
-                "subdomain": subdomain,
-                "targetKey": apiKey,
-            },
+        assert edit_action == "remove"
+        sz = len(target_rrset)
+        target_rrset = [item for item in target_rrset if item["content"] != rr_content]
+        if len(target_rrset) == sz:
+            # TODO: This should 301 redirect with a warning message that nothing was removed
+            raise Http404("Item to remove was not found")
+
+    if target_rrset:
+        logging.info(
+            f"Updating RRSET {rr_name} {rr_type} with {len(target_rrset)} values"
         )
-
-
-@require_POST
-@login_required
-def create_api_key(request: HttpRequest, subdomain_id: str) -> HttpResponse:
-    subdomain_list = Subdomain.objects.filter(pk=subdomain_id,).prefetch_related(
-        "apiKeys",
-        "domain",
-        "domain__owner",
-    )
-
-    subdomain_list = [_ for _ in subdomain_list]
-    if not subdomain_list:
-        raise Http404("Subdomain not found")
-    if len(subdomain_list) > 1:
-        return HttpResponseServerError("Unable to process request")
-
-    subdomain = subdomain_list[0]
-    if subdomain.domain.owner != request.user:
-        # permission error, pretend the key doesn't exist
-        raise Http404("Key not found")
-
-    if subdomain.apiKeys.count() >= settings.LOCALCERT_API_KEYS_PER_SUBDOMAIN_LIMIT:
-        return HttpResponseBadRequest("Cannot create additional keys, limit reached")
-
-    createdKey, secretKey = create_record_api_key(subdomain)
-    return render(
-        request,
-        "show_new_subdomain_api_key.html",
-        {
-            "domain": subdomain.domain,
-            "subdomain": subdomain,
-            "secretKeyId": createdKey.id,
-            "secretKey": secretKey,
-        },
-    )
-
-
-@require_http_methods(["GET", "POST"])
-@login_required
-def create_resource_record(request: HttpRequest, subdomain_id: str) -> HttpResponse:
-    subdomain_list = Subdomain.objects.filter(pk=subdomain_id,).prefetch_related(
-        "domain__owner",
-        "records",
-    )
-
-    subdomain_list = [_ for _ in subdomain_list]
-    if not subdomain_list:
-        raise Http404("No such subdomain")
-    if len(subdomain_list) > 1:
-        return HttpResponseServerError("Unable to process request")
-    subdomain = subdomain_list[0]
-
-    domain = subdomain.domain
-    if domain.owner != request.user:
-        # permission issue, pretend the subdomain doesn't exist
-        raise Http404("No such subdomain")
-
-    if subdomain.records.count() >= settings.LOCALCERT_RECORDS_PER_SUBDOMAIN_LIMIT:
-        return HttpResponseBadRequest("Cannot create additional records, limit reached")
-
-    if request.method == "POST":
-        value = request.POST["value"]
-        Record.objects.create(
-            subdomain=subdomain,
-            value=value,
-        )
-        return redirect(
-            "describe_subdomain",
-            subdomain_id=subdomain.id,
-        )
+        # Replace to update the content
+        pdns_replace_rrset(validated_zone.name, rr_name, rr_type, 10, target_rrset)
     else:
-        return render(
-            request,
-            "create_resource_record.html",
-            {
-                "domain": domain,
-                "subdomain": subdomain,
-            },
-        )
+        logging.info(f"Deleting RRSET {rr_name} {rr_type}")
+        # Nothing remaining, delete the rr_set
+        pdns_delete_rrset(validated_zone.name, rr_name, rr_type)
 
-
-@require_http_methods(["GET", "POST"])
-@login_required
-def delete_resource_record(request: HttpRequest, record_id: str) -> HttpResponse:
-    record_list = Record.objects.filter(pk=record_id,).prefetch_related(
-        "subdomain",
-        "subdomain__domain",
-        "subdomain__domain__owner",
+    return redirect(
+        "describe_zone",
+        zone_name=validated_zone.name,
     )
-
-    record_list = [_ for _ in record_list]
-    if not record_list:
-        raise Http404("Record not found")
-    if len(record_list) > 1:
-        return HttpResponseServerError("Unable to process request")
-    record = record_list[0]
-
-    subdomain = record.subdomain
-    domain = subdomain.domain
-    if domain.owner != request.user:
-        # permission issue, pretend it doesn't exist
-        raise Http404("Record not found")
-
-    if request.method == "POST":
-        record.delete()
-        return redirect(
-            "describe_subdomain",
-            subdomain_id=subdomain.id,
-        )
-    else:
-        return render(
-            request,
-            "confirm_record_delete.html",
-            {
-                "domain": domain,
-                "subdomain": subdomain,
-                "record": record,
-            },
-        )

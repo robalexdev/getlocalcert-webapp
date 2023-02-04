@@ -14,40 +14,45 @@
 <h4>Create Record</h4>
 
 <p>
-localcert.net only support TXT records for ACME DNS-01 challenges.
+localhostcert.net only support TXT records for ACME DNS-01 challenges.
 </p>
 
 <p>
 You may manually set your challenge response here, or check the <a href="TODO">docs</a> to configure your ACME client to automate issuance and renewals.
 </p>
 
+{% with rrname="_acme-challenge."|add:domain.name %}
 <form
+    action="{% url 'modify_rrset' rr_name=rrname %}"
     style="padding: 3em;"
-    action="{% url 'create_resource_record' subdomain_id=subdomain.id %}"
     method="post">
-{% csrf_token %}
 
-<p>
-<label>Record</label>
-<br />
-<input type="text" value="_acme-challenge.{{ subdomain.name }}.{{ domain.name }}.localcert.net" readonly>
-</p>
+{% csrf_token %}
 
 <p>
 <label>Record Type</label>
 <br />
-<input type="text" value="TXT" readonly>
+<input type="text" name="rr_type" id="rrtype" value="TXT" readonly>
+</p>
+
+<p>
+<label>Record</label>
+<br />
+<input type="text" value="{{ rrname }}" readonly>
 </p>
 
 <p>
 <label for="value">Record Value</label>
 <br />
-<input type="text" name="value" id="value" style="width: 60em">
+<input type="text" name="rr_content" id="value" value="paste your ACME challenge response here" style="width: 60em">
 </p>
+
+<input type="hidden" name="edit_action" value="add">
 
 <p>
 <input type="submit" value="Create Record">
 </p>
 </form>
+{% endwith %}
 
 {% include "page_end.html" %}

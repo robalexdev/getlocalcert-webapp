@@ -17,9 +17,9 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-##
-## Settings from environmental variables
-##
+#
+# Settings from environmental variables
+#
 
 SECRET_KEY = os.environ["LOCALCERT_DJANGO_SECRET_KEY"]
 # Key rotation, keep these for only a short time
@@ -157,7 +157,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTHENTICATION_BACKENDS = [
     # Disable login via username, OAuth flow only
-    #'django.contrib.auth.backends.ModelBackend',
+    # 'django.contrib.auth.backends.ModelBackend',
     # `allauth` specific authentication methods, such as login by e-mail
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
@@ -168,9 +168,23 @@ INTERNAL_IPS = [
     # "127.0.0.1",
 ]
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+}
 
 # App specific settings
 LOCALCERT_DOMAIN_LIMIT = 3
 LOCALCERT_SUBDOMAIN_LIMIT = 3
-LOCALCERT_API_KEYS_PER_SUBDOMAIN_LIMIT = 2
-LOCALCERT_RECORDS_PER_SUBDOMAIN_LIMIT = 5
+LOCALCERT_TXT_RECORDS_PER_RRSET_LIMIT = 2
+
+LOCALCERT_PDNS_API_KEY = "changeme"
