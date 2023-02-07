@@ -17,4 +17,30 @@ urlpatterns = [
         views.modify_rrset,
         name="modify_rrset",
     ),
+    path(
+        "domain/<str:zone_name>/apikey/",
+        views.create_zone_api_key,
+        name="create_zone_api_key",
+    ),
+    path(
+        "domain/<str:zone_name>/delete-apikey/",
+        views.delete_zone_api_key,
+        name="delete_zone_api_key",
+    ),
+    # ACME DNS APIs are namespaced
+    path(
+        "acmedns-api/health",
+        views.acmedns_api_health,
+        name="acmedns_api_health",
+    ),
+    path(
+        "acmedns-api/update",
+        views.acmedns_api_update,
+        name="acmedns_api_update",
+    ),
+    path(
+        "acmedns-api/check",
+        views.acmedns_api_extra_check,
+        name="acmedns_api_extra_check",
+    ),
 ]

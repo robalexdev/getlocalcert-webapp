@@ -21,7 +21,7 @@ Please save the following API key pair in a safe location.
 </p>
 
 <p>
-The following API key pair has scoped access to allow setting a DNS TXT record for {{ subdomain.name }}.{{ domain.name }}.localcert.net.
+The following API key pair has scoped access to allow setting a DNS TXT record for {{ domain }}.
 </p>
 
 <table>
@@ -31,7 +31,7 @@ The following API key pair has scoped access to allow setting a DNS TXT record f
         <th>Secret Key</th>
     </tr>
     <tr>
-        <td id="fqdn">{{ subdomain.name }}.{{ domain.name }}.localcert.net</td>
+        <td id="domain">{{ domain }}</td>
         <td id="secretKeyId">{{ secretKeyId }}</td>
         <td id="secretKey">{{ secretKey }}</td>
     </tr>
@@ -46,7 +46,7 @@ Read the <a href="TODO">docs</a> for information on using your API key pair.
 </p>
 
 <p>
-<a href="{% url 'describe_subdomain' subdomain_id=subdomain.id %}">Continue</a>
+<a href="{% url 'describe_zone' zone_name=domain %}">Continue</a>
 </p>
 
 {% include "page_end.html" %}

@@ -1,26 +1,65 @@
 import logging
+import secrets
+
 from base64 import urlsafe_b64decode
+from hashlib import sha256
 
-from django.http import HttpResponseBadRequest, HttpResponseServerError
-
-
-ACME_CHALLENGE_LABEL = "_acme-challenge"
+from django.http import (
+    HttpResponse,
+    JsonResponse,
+)
 
 
 class CustomException(Exception):
-    def __init__(self, message):
-        self.message = message
+    pass
 
 
 class CustomExceptionBadRequest(CustomException):
+    """
+    When the client provides bad input, give the user a detailed 4xx response
+    """
+
+    def __init__(self, message, status_code=400):
+        self.message = message
+        self.status_code = status_code
+
     def render(self):
-        return HttpResponseBadRequest(self.message)
+        assert self.status_code >= 400 and self.status_code < 500
+        return HttpResponse(self.message, status=self.status_code)
+
+    def render_json(self):
+        assert self.status_code >= 400 and self.status_code < 500
+        return JsonResponse(
+            {
+                "error": self.message,
+            },
+            status=self.status_code,
+        )
 
 
 class CustomExceptionServerError(CustomException):
+    """
+    When there's a server side error, log it and give the user a vague 5xx response
+    """
+
+    def __init__(self, message, status_code=500):
+        self.message = message
+        self.status_code = status_code
+
     def render(self):
+        assert self.status_code >= 500
         logging.error(self.message)
-        return HttpResponseServerError("Unable to process request")
+        return HttpResponse("Unable to process request", status=self.status_code)
+
+    def render_json(self):
+        assert self.status_code >= 500
+        logging.error(self.message)
+        return JsonResponse(
+            {
+                "error": "Unable to process request",
+            },
+            status=self.status_code,
+        )
 
 
 def with_dot_suffix(domain: str) -> str:
@@ -82,3 +121,11 @@ def validate_acme_dns01_txt_value(value: str):
 
     # Otherwise the value is a randomized hash, looks good.
     return
+
+
+def create_secret() -> str:
+    return secrets.token_hex()
+
+
+def hash_secret(secret: str) -> str:
+    return sha256(secret.encode("utf-8")).digest()

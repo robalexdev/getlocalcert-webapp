@@ -62,6 +62,40 @@
 <a href="{% url 'create_resource_record_page' zone_name=domain.name%}">Add Record</a>
 {% endif %}
 
+<h2>API Keys</h2>
+
+The following API keys are scoped to this domain.
+
+<table>
+    <tr>
+        <th>Key ID</th>
+        <th>Last Used</th>
+        <th>Created</th>
+        <th>Delete</th>
+    </tr>
+    {% for key in keys %}
+      <tr>
+        <td>{{key.id}}</td>
+        <td>{{key.last_used}}</td>
+        <td>{{key.created}}</td>
+        <td>
+          <form action="{% url 'delete_zone_api_key' zone_name=domain.name %}" method="post">
+            {% csrf_token %}
+            <input name="secret_key_id" type="text" hidden value="{{ key.id }}">
+            <input type="submit" value="x">
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+</table>
+
+{% if can_create_api_key %}
+<form action="{% url 'create_zone_api_key' zone_name=domain.name %}" method="post">
+  {% csrf_token %}
+  <input type="submit" value="Create new API key">
+</form>
+{% endif %}
+
 <p>
 <i>Domain active since {{domain.created}}</i>
 </p>

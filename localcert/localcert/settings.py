@@ -178,13 +178,13 @@ LOGGING = {
     },
     "root": {
         "handlers": ["console"],
-        "level": "INFO",
+        "level": "DEBUG",
     },
 }
 
 # App specific settings
-LOCALCERT_DOMAIN_LIMIT = 3
-LOCALCERT_SUBDOMAIN_LIMIT = 3
-LOCALCERT_TXT_RECORDS_PER_RRSET_LIMIT = 2
 
+LOCALCERT_PDNS_SERVER_IP = "127.0.0.1"
+LOCALCERT_PDNS_API_PORT = 8081
 LOCALCERT_PDNS_API_KEY = "changeme"
+LOCALCERT_PDNS_DNS_PORT = 8053

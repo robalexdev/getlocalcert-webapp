@@ -3,7 +3,8 @@ import requests
 from .utils import CustomExceptionServerError
 from django.conf import settings
 
-PDNS_API_BASE_URL = "http://127.0.0.1:8081/api/v1"
+
+PDNS_API_BASE_URL = f"http://{settings.LOCALCERT_PDNS_SERVER_IP}:{settings.LOCALCERT_PDNS_API_PORT}/api/v1"
 PDNS_HEADERS = {
     "X-API-Key": settings.LOCALCERT_PDNS_API_KEY,
     "accept": "application/json",

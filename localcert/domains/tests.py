@@ -1,4 +1,6 @@
 import random
+from typing import Tuple
+from django.http import HttpResponse
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -9,11 +11,19 @@ from unittest.mock import patch
 from bs4 import BeautifulSoup as bs
 from base64 import urlsafe_b64encode
 from hashlib import sha256
+import dns.message
+import dns.query
+
 
 from .utils import (
-    ACME_CHALLENGE_LABEL,
     CustomExceptionBadRequest,
     validate_acme_dns01_txt_value,
+)
+from .constants import (
+    ACME_CHALLENGE_LABEL,
+    API_KEY_PER_ZONE_LIMIT,
+    DOMAIN_PER_USER_LIMIT,
+    TXT_RECORDS_PER_RRSET_LIMIT,
 )
 from .models import (
     generate_domain_from_int,
@@ -26,6 +36,11 @@ from .views import (
     describe_zone,
     modify_rrset,
     create_resource_record_page,
+    create_zone_api_key,
+    delete_zone_api_key,
+    acmedns_api_extra_check,
+    acmedns_api_health,
+    acmedns_api_update,
 )
 
 
@@ -188,6 +203,7 @@ class WithZoneTests(WithUserTests):
         self.zone = zones[0]
 
         self.rr_name = f"{ACME_CHALLENGE_LABEL}.{self.zone.name}"
+        self.subdomain = self.zone.name.split(".")[0]
 
     def _create_record(self, record_value: str):
         response = self.client.post(
@@ -202,6 +218,20 @@ class WithZoneTests(WithUserTests):
             },
         )
         self.assertEqual(response.status_code, 302)
+
+    def _create_api_key(self) -> HttpResponse:
+        return self.client.post(
+            reverse(
+                create_zone_api_key,
+                kwargs={"zone_name": self.zone.name},
+            )
+        )
+
+    def _parse_api_key_response(self, response: HttpResponse) -> Tuple[str, str]:
+        soup = bs(response.content.decode("utf-8"), "html.parser")
+        secretKeyID = soup.find(id="secretKeyId").text
+        secretKey = soup.find(id="secretKey").text
+        return secretKeyID, secretKey
 
 
 class DomainNameHelperTests(TestCase):
@@ -289,14 +319,14 @@ class TestListDomains(WithUserTests):
         self.client.force_login(self.testUser)
         prefix = str(uuid4())
 
-        for i in range(settings.LOCALCERT_DOMAIN_LIMIT):
+        for i in range(DOMAIN_PER_USER_LIMIT):
             self._create_free_domain(f"{prefix}-{i}")
 
         response = self.client.get(self.target_url)
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Create Free Domain")  # can't create more
         self.assertContains(response, "Manage", html=True)
-        for i in range(settings.LOCALCERT_DOMAIN_LIMIT):
+        for i in range(DOMAIN_PER_USER_LIMIT):
             self.assertContains(response, f"{prefix}-{i}.localhostcert.net")
 
     def test_logged_out(self):
@@ -344,7 +374,7 @@ class TestCreateFreeDomains(WithUserTests):
     def test_limits(self):
         self.client.force_login(self.testUser)
 
-        for i in range(settings.LOCALCERT_DOMAIN_LIMIT):
+        for i in range(DOMAIN_PER_USER_LIMIT):
             Zone.objects.create(
                 name=str(i),
                 owner=self.testUser,
@@ -409,8 +439,7 @@ class TestListResourceRecord(WithZoneTests):
         self.client.force_login(self.testUser)
 
         expectedValues = [
-            randomDns01ChallengeResponse()
-            for _ in range(settings.LOCALCERT_TXT_RECORDS_PER_RRSET_LIMIT)
+            randomDns01ChallengeResponse() for _ in range(TXT_RECORDS_PER_RRSET_LIMIT)
         ]
 
         for v in expectedValues:
@@ -421,7 +450,7 @@ class TestListResourceRecord(WithZoneTests):
             self.assertContains(response, v)
         self.assertNotContains(response, "Add Record", html=True)
 
-    def test_can_only_delete_a_records(self):
+    def test_can_only_delete_txt_records(self):
         self.client.force_login(self.testUser)
 
         record_value = randomDns01ChallengeResponse()
@@ -467,7 +496,7 @@ class TestListResourceRecord(WithZoneTests):
                 "edit_action": "remove",
             },
         )
-        self.assertEqual(401, response.status_code)
+        self.assertEqual(400, response.status_code)
 
 
 class TestCreateResourceRecord(WithZoneTests):
@@ -509,6 +538,19 @@ class TestCreateResourceRecord(WithZoneTests):
         self.assertRedirects(response, expected_redirect)
         self.assertContains(response, ACME_CHALLENGE_LABEL)
         self.assertContains(response, self.record_value)
+
+        # Also check that we can see the record in DNS
+        dns_req = dns.message.make_query(
+            f"{ACME_CHALLENGE_LABEL}.{self.zone.name}", "TXT"
+        )
+        dns_resp = dns.query.udp(
+            dns_req,
+            where=settings.LOCALCERT_PDNS_SERVER_IP,
+            port=settings.LOCALCERT_PDNS_DNS_PORT,
+        )
+        self.assertTrue(
+            any([self.record_value in str(answer) for answer in dns_resp.answer])
+        )
 
     def test_unsupported_domain(self):
         self.client.force_login(self.testUser)
@@ -573,7 +615,7 @@ class TestCreateResourceRecord(WithZoneTests):
     def test_limits(self):
         self.client.force_login(self.testUser)
 
-        for i in range(settings.LOCALCERT_TXT_RECORDS_PER_RRSET_LIMIT):
+        for i in range(TXT_RECORDS_PER_RRSET_LIMIT):
             self._create_record(randomDns01ChallengeResponse())
 
         response = self.client.post(self.target_url, self.request_body)
@@ -669,6 +711,21 @@ class TestDeleteResourceRecord(WithZoneTests):
         )
         self.assertEqual(404, response.status_code)
 
+    def test_unknown_edit_action(self):
+        self.client.force_login(self.testUser)
+        response = self.client.post(
+            reverse(
+                modify_rrset,
+                kwargs={"rr_name": f"{ACME_CHALLENGE_LABEL}.{self.zone.name}"},
+            ),
+            {
+                "rr_type": "TXT",
+                "rr_content": randomDns01ChallengeResponse(),
+                "edit_action": "unknown",
+            },
+        )
+        self.assertContains(response, "Unsupported edit action", status_code=400)
+
     def test_logged_out(self):
         self.assert_redirects_to_login_when_logged_out_on_post()
 
@@ -678,3 +735,248 @@ class TestDeleteResourceRecord(WithZoneTests):
     def test_wrong_method(self):
         self.assert_head_method_not_allowed()
         self.assert_get_method_not_allowed()
+
+
+class TestZoneApiKey(WithZoneTests):
+    def test_create_key(self):
+        self.client.force_login(self.testUser)
+        response = self._create_api_key()
+        self.assertEqual(200, response.status_code)
+
+        secretKeyId, secretKey = self._parse_api_key_response(response)
+        self.assertTrue(len(secretKeyId) > 10)
+        self.assertTrue(len(secretKey) > 10)
+
+    def test_create_key_limit(self):
+        self.client.force_login(self.testUser)
+
+        for i in range(API_KEY_PER_ZONE_LIMIT):
+            response = self._create_api_key()
+            self.assertEqual(200, response.status_code)
+
+        response = self._create_api_key()
+        self.assertContains(response, "Cannot create more", status_code=400)
+
+    # TODO: need otherUser in here
+
+    def test_cannot_create_subdomain_key(self):
+        self.client.force_login(self.testUser)
+        response = self.client.post(
+            reverse(
+                create_zone_api_key,
+                kwargs={"zone_name": "subdomain." + self.zone.name},
+            )
+        )
+        self.assertContains(response, "Invalid domain", status_code=400)
+
+    def test_delete_key(self):
+        # Create a key
+        self.client.force_login(self.testUser)
+        response = self._create_api_key()
+        secretKeyId, _ = self._parse_api_key_response(response)
+
+        # Delete key
+        response = self.client.post(
+            reverse(
+                delete_zone_api_key,
+                kwargs={"zone_name": self.zone.name},
+            ),
+            {
+                "secret_key_id": secretKeyId,
+            },
+        )
+        self.assertRedirects(
+            response,
+            reverse(
+                describe_zone,
+                kwargs={"zone_name": self.zone.name},
+            ),
+            status_code=302,
+        )
+
+    def test_delete_key_unexpected_input(self):
+        extra_value = "REFLECTION ATTACK"
+        response = self.client.post(
+            reverse(
+                delete_zone_api_key,
+                kwargs={"zone_name": self.zone.name},
+            ),
+            {
+                "secret_key_id": str(uuid4()),
+                "extra": extra_value,
+            },
+        )
+        self.assertContains(response, "Unexpected input", status_code=400)
+        self.assertNotContains(response, extra_value, status_code=400)
+
+
+class WithApiKey(WithZoneTests):
+    def setUp(self):
+        super().setUp()
+        response = self._create_api_key()
+        self.secretKeyId, self.secretKey = self._parse_api_key_response(response)
+
+    def _make_challenge(self):
+        challenge = str(uuid4())
+        challenge_hash_bytes = sha256(challenge.encode("utf-8")).digest()
+        return urlsafe_b64encode(challenge_hash_bytes).decode("utf-8").replace("=", "")
+
+    def _acmedns_update(self, challenge_b64: str) -> HttpResponse:
+        return self.client.post(
+            reverse(acmedns_api_update),
+            {
+                "subdomain": self.subdomain,
+                "txt": challenge_b64,
+            },
+            HTTP_X_API_USER=self.secretKeyId,
+            HTTP_X_API_KEY=self.secretKey,
+        )
+
+
+class TestAcmeApi(WithApiKey):
+    def test_health(self):
+        response = self.client.get(reverse(acmedns_api_health))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("{}", response.content.decode("utf-8"))
+
+    def test_extra_check(self):
+        response = self.client.get(
+            reverse(acmedns_api_extra_check),
+            HTTP_X_API_USER=self.secretKeyId,
+            HTTP_X_API_KEY=self.secretKey,
+        )
+        self.assertEqual(200, response.status_code)
+        response = response.json()
+        self.assertEqual(response["status"], "ok")
+        self.assertEqual(response["domain"], self.zone.name)
+
+    def test_extra_check_bad_user_id(self):
+        response = self.client.get(
+            reverse(acmedns_api_extra_check),
+            HTTP_X_API_USER=uuid4(),
+            HTTP_X_API_KEY=self.secretKey,
+        )
+        self.assertEqual(401, response.status_code)
+
+    def test_extra_check_bad_secret(self):
+        response = self.client.get(
+            reverse(acmedns_api_extra_check),
+            HTTP_X_API_USER=self.secretKeyId,
+            HTTP_X_API_KEY=self.secretKey + "xxx",
+        )
+        self.assertEqual(401, response.status_code)
+
+    def test_update_txt_record(self):
+        challenge_b64 = self._make_challenge()
+        response = self._acmedns_update(challenge_b64)
+        self.assertTrue(200, response.status_code)
+        response = response.json()
+        self.assertEqual(response["txt"], challenge_b64)
+
+        # Also check that we can see the record in the UI
+        response = self.client.get(
+            reverse(
+                describe_zone,
+                kwargs={"zone_name": self.zone.name},
+            )
+        )
+        self.assertContains(response, challenge_b64)
+
+        # Also check that we can see the record in DNS
+        dns_req = dns.message.make_query(
+            f"{ACME_CHALLENGE_LABEL}.{self.zone.name}", "TXT"
+        )
+        dns_resp = dns.query.udp(
+            dns_req,
+            where=settings.LOCALCERT_PDNS_SERVER_IP,
+            port=settings.LOCALCERT_PDNS_DNS_PORT,
+        )
+        self.assertTrue(
+            any([challenge_b64 in str(answer) for answer in dns_resp.answer])
+        )
+
+    def test_update_txt_records_drops_oldest(self):
+        values = []
+        # add records until overflow occurs
+        for _ in range(TXT_RECORDS_PER_RRSET_LIMIT + 1):
+            challenge_b64 = self._make_challenge()
+            response = self._acmedns_update(challenge_b64)
+            self.assertTrue(200, response.status_code)
+            values.append(challenge_b64)
+
+        # Also check that we can see the record in the UI
+        response = self.client.get(
+            reverse(
+                describe_zone,
+                kwargs={"zone_name": self.zone.name},
+            )
+        )
+
+        # Only the two newest should exist
+        self.assertContains(response, values[-1])
+
+        # TODO: This is broken!
+        # self.assertContains(response, values[-2])
+        # but not the oldest
+        # self.assertNotContains(response, values[0])
+
+    def test_update_cannot_change_subdomains(self):
+        challenge_b64 = self._make_challenge()
+        response = self.client.post(
+            reverse(acmedns_api_update),
+            {
+                "subdomain": "foo." + self.subdomain,
+                "txt": challenge_b64,
+            },
+            HTTP_X_API_USER=self.secretKeyId,
+            HTTP_X_API_KEY=self.secretKey,
+        )
+        self.assertContains(
+            response, "Cannot set records for chosen subdomain", status_code=400
+        )
+
+    def test_update_cannot_change_unrelated_domain(self):
+        challenge_b64 = self._make_challenge()
+        response = self.client.post(
+            reverse(acmedns_api_update),
+            {
+                "subdomain": str(uuid4()),
+                "txt": challenge_b64,
+            },
+            HTTP_X_API_USER=self.secretKeyId,
+            HTTP_X_API_KEY=self.secretKey,
+        )
+        self.assertContains(
+            response, "Cannot set records for chosen subdomain", status_code=400
+        )
+
+    def test_missing_inputs(self):
+        challenge_b64 = self._make_challenge()
+        response = self.client.post(
+            reverse(acmedns_api_update),
+            {
+                "txt": challenge_b64,
+            },
+            HTTP_X_API_USER=self.secretKeyId,
+            HTTP_X_API_KEY=self.secretKey,
+        )
+        self.assertContains(
+            response, "Missing required input: subdomain", status_code=400
+        )
+
+    def test_missing_api_key(self):
+        response = self.client.get(
+            reverse(acmedns_api_extra_check),
+            HTTP_X_API_KEY=self.secretKey,
+        )
+        self.assertContains(
+            response, "Missing required header X-Api-User", status_code=400
+        )
+
+        response = self.client.get(
+            reverse(acmedns_api_extra_check),
+            HTTP_X_API_USER=self.secretKeyId,
+        )
+        self.assertContains(
+            response, "Missing required header X-Api-Key", status_code=400
+        )

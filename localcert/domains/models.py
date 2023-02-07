@@ -4,6 +4,8 @@ import uuid
 from django.db import models
 from django.conf import settings
 
+from domains.utils import create_secret, hash_secret
+
 
 class Zone(models.Model):
     id = models.UUIDField(
@@ -43,6 +45,41 @@ class DomainNameHelper(models.Model):
     # autoincrement -> short domain label function
     def get_name(self) -> str:
         return generate_domain_from_int(int(self.id))
+
+
+class ZoneApiKey(models.Model):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    zone = models.ForeignKey(
+        Zone,
+        on_delete=models.CASCADE,
+        null=False,
+        editable=False,
+    )
+
+    hash = models.BinaryField(
+        max_length=32,  # SHA256->32 bytes
+        editable=False,
+    )
+
+    created = models.DateTimeField(auto_now_add=True)
+    last_used = models.DateTimeField(default=None, null=True)
+
+    def check_secret_key(self, provided_secret_key: str) -> bool:
+        return self.hash == hash_secret(provided_secret_key)
+
+    @classmethod
+    def create(cls, zone: Zone):
+        secret_key = create_secret()
+        obj = ZoneApiKey.objects.create(
+            zone=zone,
+            hash=hash_secret(secret_key),
+        )
+        return obj, secret_key
 
 
 DOMAIN_LABEL_CHARS = string.digits + string.ascii_lowercase
