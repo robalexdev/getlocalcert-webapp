@@ -1,5 +1,7 @@
 {% include "page_start.html" %}
 
+{% load extra_filters %}
+
 <style>
   table th, table td {
     padding: 2em;
@@ -14,8 +16,8 @@
 <table>
 {% for zone in zones %}
 <tr>
-  <th>{{ zone.name }}</th>
-  <td><a href="{% url 'describe_zone' zone_name=zone.name%}">Manage</a></td>
+  <th>{{ zone.name | strip_trailing_dot }}</th>
+  <td><a href="{{ zone.url }}">Manage</a></td>
 </tr>
 {% endfor %}
 </table>

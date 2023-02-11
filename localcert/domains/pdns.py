@@ -41,7 +41,9 @@ def pdns_describe_domain(zone_name: str) -> dict:
         headers=PDNS_HEADERS,
     )
     if resp.status_code != requests.codes.ok:
-        raise CustomExceptionServerError(f"{resp.status_code}")
+        raise CustomExceptionServerError(
+            f"Unable to describe domain, PDNS error code: {resp.status_code}"
+        )
 
     return resp.json()
 

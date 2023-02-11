@@ -1,29 +1,27 @@
-from django.urls import path
-
 from . import views
+from django.urls import path
 
 urlpatterns = [
     path("", views.list_zones, name="list_zones"),
-    path("create_free_domain", views.create_free_domain, name="create_free_domain"),
-    path("domain/<str:zone_name>/", views.describe_zone, name="describe_zone"),
-    # Create / Delete Records
+    path("create-free-domain", views.create_free_domain, name="create_free_domain"),
+    path("describe-zone", views.describe_zone, name="describe_zone"),
     path(
-        "domain/<str:zone_name>/record/",
-        views.create_resource_record_page,
-        name="create_resource_record_page",
+        "add-record",
+        views.add_record,
+        name="add_record",
     ),
     path(
-        "record/<str:rr_name>/",
-        views.modify_rrset,
-        name="modify_rrset",
+        "delete-record",
+        views.delete_record,
+        name="delete_record",
     ),
     path(
-        "domain/<str:zone_name>/apikey/",
+        "create-zone-api-key",
         views.create_zone_api_key,
         name="create_zone_api_key",
     ),
     path(
-        "domain/<str:zone_name>/delete-apikey/",
+        "delete-zone-api-key",
         views.delete_zone_api_key,
         name="delete_zone_api_key",
     ),

@@ -1,28 +1,16 @@
 import logging
 
-from django.http import (
-    Http404,
-    HttpRequest,
-    HttpResponse,
-    JsonResponse,
-)
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect, render
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST
-
-from .utils import (
-    CustomExceptionBadRequest,
-    validate_acme_dns01_txt_value,
-)
-
 from .constants import (
     ACME_CHALLENGE_LABEL,
     API_KEY_PER_ZONE_LIMIT,
     DOMAIN_PER_USER_LIMIT,
     TXT_RECORDS_PER_RRSET_LIMIT,
 )
-
+from .decorators import (
+    require_api_key,
+    use_custom_errors,
+    use_custom_json_errors,
+)
 from .models import (
     Zone,
     ZoneApiKey,
@@ -30,18 +18,34 @@ from .models import (
 )
 from .pdns import (
     pdns_create_zone,
-    pdns_replace_rrset,
-    pdns_describe_domain,
     pdns_delete_rrset,
+    pdns_describe_domain,
+    pdns_replace_rrset,
 )
-
-from .decorators import (
-    permitted_in_POST,
-    require_zone_access,
-    use_custom_errors,
-    use_custom_json_errors,
-    require_api_key,
+from .utils import (
+    CustomExceptionBadRequest,
+    build_url,
 )
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count
+from django.http import (
+    Http404,
+    HttpRequest,
+    HttpResponse,
+    JsonResponse,
+)
+from django.shortcuts import redirect, render
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
+from domains.forms import (
+    AcmeDnsUpdateRecordForm,
+    AddRecordForm,
+    CreateZoneApiKeyForm,
+    DeleteRecordForm,
+    DeleteZoneApiKeyForm,
+    DescribeZoneForm,
+)
+from enum import Enum
 
 
 @use_custom_errors
@@ -52,7 +56,13 @@ def list_zones(request: HttpRequest) -> HttpResponse:
         "name",
     )
 
-    zones = [_ for _ in zones]
+    zones = [
+        {
+            "name": zone.name,
+            "url": build_url(describe_zone, params={"zone_name": zone.name}),
+        }
+        for zone in zones
+    ]
 
     return render(
         request,
@@ -66,7 +76,6 @@ def list_zones(request: HttpRequest) -> HttpResponse:
 
 @use_custom_errors
 @require_POST
-@permitted_in_POST([])
 @login_required
 def create_free_domain(
     request: HttpRequest,
@@ -87,7 +96,6 @@ def create_free_domain(
     pdns_replace_rrset(zone_name, zone_name, "A", 3600, records)
 
     # Create domain in DB
-    # TODO: catch error?
     newZone = Zone.objects.create(
         name=zone_name,
         owner=request.user,
@@ -97,25 +105,47 @@ def create_free_domain(
 
     # TODO success message
     return redirect(
-        "describe_zone",
-        zone_name=newZone.name,
+        build_url(
+            "describe_zone",
+            params={
+                "zone_name": newZone.name,
+            },
+        )
     )
 
 
 @use_custom_errors
 @require_GET
 @login_required
-@require_zone_access(zonekw="zone_name")
 def describe_zone(
     request: HttpRequest,
-    validated_zone: Zone,
-    zone_name: str,
 ) -> HttpResponse:
-    keys = ZoneApiKey.objects.filter(
-        zone=validated_zone,
-    )
+    form = DescribeZoneForm(request.GET)
+    if not form.is_valid():
+        raise CustomExceptionBadRequest(
+            ". ".join(
+                [k + ": " + " ".join(x for x in v) for k, v in form.errors.items()]
+            )
+        )
+    zone_name = form.cleaned_data["zone_name"]
 
-    details = pdns_describe_domain(validated_zone.name)
+    zone = (
+        Zone.objects.prefetch_related("zoneapikey_set")
+        .filter(
+            name=zone_name,
+            owner=request.user,
+        )
+        .first()
+    )
+    if not zone:
+        raise CustomExceptionBadRequest(
+            "Domain does not exist, or you are not the owner",
+            status_code=404,
+        )
+
+    keys = [_ for _ in zone.zoneapikey_set.all()]
+
+    details = pdns_describe_domain(zone.name)
 
     txt_records = [rrset for rrset in details["rrsets"] if rrset["type"] == "TXT"]
     if len(txt_records) == 0:
@@ -131,7 +161,10 @@ def describe_zone(
         request,
         "domain_detail.html",
         {
-            "domain": validated_zone,
+            "domain": zone,
+            "create_resource_record_url": build_url(
+                add_record, params={"zone_name": zone.name}
+            ),
             "keys": keys,
             "can_create_api_key": len(keys) < API_KEY_PER_ZONE_LIMIT,
             "rrsets": details["rrsets"],
@@ -141,49 +174,49 @@ def describe_zone(
 
 
 @use_custom_errors
-@require_GET
-@login_required
-@require_zone_access(zonekw="zone_name")
-def create_resource_record_page(
-    request: HttpRequest,
-    zone_name: str,
-    validated_zone: Zone,
-) -> HttpResponse:
-    return render(
-        request,
-        "create_resource_record.html",
-        {
-            "domain": validated_zone,
-        },
-    )
-
-
-@use_custom_errors
 @require_POST
-@permitted_in_POST([])
 @login_required
-@require_zone_access(zonekw="zone_name")
 def create_zone_api_key(
     request: HttpRequest,
-    zone_name: str,
-    validated_zone: Zone,
 ) -> HttpResponse:
-    zone_api_key_count = ZoneApiKey.objects.filter(
-        zone=validated_zone,
-    ).count()
+    form = CreateZoneApiKeyForm(request.POST)
+    if not form.is_valid():
+        raise CustomExceptionBadRequest(
+            ". ".join(
+                [k + ": " + " ".join(x for x in v) for k, v in form.errors.items()]
+            )
+        )
+    zone_name = form.cleaned_data["zone_name"]
 
-    if zone_api_key_count >= API_KEY_PER_ZONE_LIMIT:
+    zone = (
+        Zone.objects.annotate(Count("zoneapikey"))
+        .filter(
+            name=zone_name,
+            owner=request.user,
+        )
+        .first()
+    )
+    if not zone:
+        raise CustomExceptionBadRequest(
+            "Domain does not exist, or you are not the owner",
+            status_code=404,
+        )
+
+    if zone.zoneapikey__count >= API_KEY_PER_ZONE_LIMIT:
         raise CustomExceptionBadRequest(
             "Cannot create more API keys for zone",
         )
 
-    zoneKey, secret = ZoneApiKey.create(validated_zone)
+    zoneKey, secret = ZoneApiKey.create(zone)
 
     return render(
         request,
         "show_new_api_key.html",
         {
-            "domain": validated_zone.name,
+            "domain": zone.name,
+            "describe_zone_url": build_url(
+                describe_zone, params={"zone_name": zone.name}
+            ),
             "secretKeyId": zoneKey.id,
             "secretKey": secret,
         },
@@ -192,22 +225,34 @@ def create_zone_api_key(
 
 @use_custom_errors
 @require_POST
-@permitted_in_POST(["secret_key_id"])
 @login_required
-@require_zone_access(zonekw="zone_name")
 def delete_zone_api_key(
     request: HttpRequest,
-    zone_name: str,
-    validated_zone: Zone,
 ) -> HttpResponse:
-    secretKeyId = request.POST["secret_key_id"]
-    zoneKey = ZoneApiKey.objects.get(id=secretKeyId)
+    form = DeleteZoneApiKeyForm(request.POST)
+    if not form.is_valid():
+        raise CustomExceptionBadRequest(
+            ". ".join(
+                [k + ": " + " ".join(x for x in v) for k, v in form.errors.items()]
+            )
+        )
+
+    secretKeyId = form.cleaned_data["secret_key_id"]
+    zoneKey = ZoneApiKey.objects.filter(id=secretKeyId).first()
+
+    if not zoneKey or zoneKey.zone.owner != request.user:
+        raise CustomExceptionBadRequest(
+            "API Key does not exist, or you are not the owner", status_code=404
+        )
+
     zoneKey.delete()
 
     # TODO success message
     return redirect(
-        "describe_zone",
-        zone_name=validated_zone.name,
+        build_url(
+            "describe_zone",
+            params={"zone_name": zoneKey.zone.name},
+        )
     )
 
 
@@ -219,6 +264,7 @@ def acmedns_api_health(
 
 
 # An extra API we've added to help check API keys
+# TODO move this out of acme-dns namespace, it's not part of that...
 @use_custom_json_errors
 @require_GET
 @require_api_key
@@ -238,24 +284,34 @@ def acmedns_api_extra_check(
 # https://github.com/joohoi/acme-dns/blob/835fbb9ef6cb918f7066b1b644c5e8e6a25608fc/api.go#L102
 @use_custom_json_errors
 @require_POST
-@permitted_in_POST(["subdomain", "txt"], allow_unexpected=True)
 @csrf_exempt
 @require_api_key
 def acmedns_api_update(
     request: HttpRequest,
     authenticated_key: ZoneApiKey,
 ) -> JsonResponse:
-    subdomain = request.POST["subdomain"]
-    txt = request.POST["txt"]
+    form = AcmeDnsUpdateRecordForm(request.POST)
+    if not form.is_valid():
+        raise CustomExceptionBadRequest(
+            ". ".join(
+                [k + ": " + " ".join(x for x in v) for k, v in form.errors.items()]
+            )
+        )
+
+    subdomain = form.cleaned_data["subdomain"]
+    txt = form.cleaned_data["txt"]
     zone = authenticated_key.zone
 
     if zone.name != f"{subdomain}.localhostcert.net.":
-        raise CustomExceptionBadRequest("Cannot set records for chosen subdomain")
+        raise CustomExceptionBadRequest(
+            "Subdomain does not exist or the provided key does not have access",
+            status_code=404,
+        )
 
     update_txt_record_helper(
         zone_name=zone.name,
         rr_name=f"{ACME_CHALLENGE_LABEL}.{zone.name}",
-        edit_action="add",
+        edit_action=EditActionEnum.ADD,
         rr_content=txt,
         replace_oldest=True,
     )
@@ -264,55 +320,114 @@ def acmedns_api_update(
 
 
 @use_custom_errors
-@require_POST
-@permitted_in_POST(["rr_type", "rr_content", "edit_action"])
+@require_http_methods(["GET", "POST"])
 @login_required
-@require_zone_access(zonekw="rr_name", isTXT=True)
-def modify_rrset(
+def delete_record(
     request: HttpRequest,
-    rr_name: str,
-    validated_zone: Zone,
 ) -> HttpResponse:
-    rr_type = request.POST["rr_type"]
-    rr_content = request.POST["rr_content"]
-    edit_action = request.POST["edit_action"]
+    if request.method == "POST":
+        form = DeleteRecordForm(request.POST)
+        if not form.is_valid():
+            return render(
+                request, "delete_resource_record.html", {"form": form}, status=400
+            )
+        zone_name: str = form.cleaned_data["zone_name"]
+        rr_content: str = form.cleaned_data["rr_content"]
 
-    # Validate input
-    if rr_type != "TXT":
-        raise CustomExceptionBadRequest("Unsupported record type")
+        zone = Zone.objects.filter(
+            name=zone_name,
+            owner=request.user,
+        ).first()
+        if not zone:
+            raise CustomExceptionBadRequest(
+                "Domain does not exist, or you are not the owner",
+                status_code=404,
+            )
 
-    if edit_action not in ["add", "remove"]:
-        raise CustomExceptionBadRequest("Unsupported edit action")
-
-    zone_acme_challenge_rr_name = f"{ACME_CHALLENGE_LABEL}.{validated_zone.name}"
-    if rr_name != zone_acme_challenge_rr_name:
-        raise CustomExceptionBadRequest(
-            f"Only {zone_acme_challenge_rr_name} can be modified"
+        rr_name = f"{ACME_CHALLENGE_LABEL}.{zone.name}"
+        update_txt_record_helper(
+            zone_name=zone.name,
+            rr_name=rr_name,
+            edit_action=EditActionEnum.REMOVE,
+            rr_content=rr_content,
+            replace_oldest=False,
         )
 
-    update_txt_record_helper(
-        zone_name=validated_zone.name,
-        rr_name=rr_name,
-        edit_action=edit_action,
-        rr_content=rr_content,
-        replace_oldest=False,
-    )
+        return redirect(
+            build_url(
+                "describe_zone",
+                params={"zone_name": zone.name},
+            )
+        )
 
-    return redirect(
-        "describe_zone",
-        zone_name=validated_zone.name,
+    assert request.method == "GET"
+    form = DeleteRecordForm(
+        initial=request.GET,
     )
+    return render(request, "delete_resource_record.html", {"form": form})
+
+
+@use_custom_errors
+@require_http_methods(["GET", "POST"])
+@login_required
+def add_record(
+    request: HttpRequest,
+) -> HttpResponse:
+    if request.method == "POST":
+        form = AddRecordForm(request.POST)
+        if not form.is_valid():
+            return render(
+                request, "create_resource_record.html", {"form": form}, status=400
+            )
+
+        zone_name: str = form.cleaned_data["zone_name"]
+        rr_content: str = form.cleaned_data["rr_content"]
+
+        zone = Zone.objects.filter(
+            name=zone_name,
+            owner=request.user,
+        ).first()
+        if not zone:
+            raise CustomExceptionBadRequest(
+                "Domain does not exist, or you are not the owner",
+                status_code=404,
+            )
+
+        rr_name = f"{ACME_CHALLENGE_LABEL}.{zone.name}"
+        update_txt_record_helper(
+            zone_name=zone.name,
+            rr_name=rr_name,
+            edit_action=EditActionEnum.ADD,
+            rr_content=rr_content,
+            replace_oldest=False,
+        )
+
+        return redirect(
+            build_url(
+                "describe_zone",
+                params={"zone_name": zone.name},
+            )
+        )
+
+    assert request.method == "GET"
+    form = AddRecordForm(
+        initial=request.GET,
+    )
+    return render(request, "create_resource_record.html", {"form": form})
+
+
+class EditActionEnum(Enum):
+    ADD = 1
+    REMOVE = 2
 
 
 def update_txt_record_helper(
     zone_name: str,
     rr_name: str,
-    edit_action: str,
+    edit_action: EditActionEnum,
     rr_content: str,
     replace_oldest: bool = False,
 ):
-    validate_acme_dns01_txt_value(rr_content)
-
     details = pdns_describe_domain(zone_name)
 
     # Wrap in quotes
@@ -329,8 +444,11 @@ def update_txt_record_helper(
     else:
         target_rrset = []
 
-    if edit_action == "add":
-        # TODO: limit should be one, to match ACME-DNS
+    if edit_action == EditActionEnum.ADD:
+        if any([rr_content == existing['content'] for existing in target_rrset]):
+            logging.debug("Adding a duplicated, no action needed")
+            return
+
         if len(target_rrset) >= TXT_RECORDS_PER_RRSET_LIMIT:
             if replace_oldest:
                 # TODO: This does NOT work. Need to track better
@@ -346,7 +464,7 @@ def update_txt_record_helper(
             }
         )
     else:
-        assert edit_action == "remove"
+        assert edit_action == EditActionEnum.REMOVE
         sz = len(target_rrset)
         target_rrset = [item for item in target_rrset if item["content"] != rr_content]
         if len(target_rrset) == sz:

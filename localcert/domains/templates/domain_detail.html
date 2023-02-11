@@ -1,5 +1,7 @@
 {% include "page_start.html" %}
 
+{% load extra_filters %}
+
 <style>
   table th, table td {
     padding: 1em;
@@ -9,7 +11,7 @@
 
 {% include "page_head_end.html" %}
 
-<h3>Records for {{ domain.name }}</h3>
+<h3>Records for {{ domain.name | strip_trailing_dot }}</h3>
 
 <table>
     <tr>
@@ -22,7 +24,7 @@
     {% if rrset.type != "SOA" %}
     <tr class="{{ rrset.type }}">
         <td>
-            {{ rrset.name }}
+            {{ rrset.name | strip_trailing_dot }}
         </td>
         <td>
             {{ rrset.ttl }}
@@ -35,12 +37,9 @@
             {% for record in rrset.records %}
                 <p>
                 {{ record.content }}
-                <form action="{% url 'modify_rrset' rr_name=rrset.name %}"
-                      method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="rr_type" value="TXT">
+                <form action="{% url 'delete_record' %}" method="get">
+                    <input type="hidden" name="zone_name" value="{{ domain.name }}">
                     <input type="hidden" name="rr_content" value="{{ record.content }}">
-                    <input type="hidden" name="edit_action" value="remove">
                     <input 
                       type="submit" 
                       {% if rrset.type != "TXT" %}
@@ -59,7 +58,7 @@
 </table>
 
 {% if can_add_records %}
-<a href="{% url 'create_resource_record_page' zone_name=domain.name%}">Add Record</a>
+<a href="{{ create_resource_record_url }}">Add Record</a>
 {% endif %}
 
 <h2>API Keys</h2>
@@ -79,7 +78,7 @@ The following API keys are scoped to this domain.
         <td>{{key.last_used}}</td>
         <td>{{key.created}}</td>
         <td>
-          <form action="{% url 'delete_zone_api_key' zone_name=domain.name %}" method="post">
+          <form action="{% url 'delete_zone_api_key' %}" method="post">
             {% csrf_token %}
             <input name="secret_key_id" type="text" hidden value="{{ key.id }}">
             <input type="submit" value="x">
@@ -90,8 +89,9 @@ The following API keys are scoped to this domain.
 </table>
 
 {% if can_create_api_key %}
-<form action="{% url 'create_zone_api_key' zone_name=domain.name %}" method="post">
+<form action="{% url 'create_zone_api_key' %}" method="post">
   {% csrf_token %}
+  <input type="text" name="zone_name" hidden value="{{ domain.name }}">
   <input type="submit" value="Create new API key">
 </form>
 {% endif %}

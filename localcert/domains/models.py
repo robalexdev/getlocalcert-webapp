@@ -1,10 +1,14 @@
+import secrets
 import string
 import uuid
 
 from django.db import models
 from django.conf import settings
+from hashlib import sha256
 
-from domains.utils import create_secret, hash_secret
+
+# TODO: Add a usermodel to subclass the user
+# https://docs.djangoproject.com/en/4.1/topics/auth/customizing/#using-a-custom-user-model-when-starting-a-project
 
 
 class Zone(models.Model):
@@ -94,3 +98,11 @@ def generate_domain_from_int(i: int) -> str:
             break
         i -= 1
     return label
+
+
+def create_secret() -> str:
+    return secrets.token_hex()
+
+
+def hash_secret(secret: str) -> str:
+    return sha256(secret.encode("utf-8")).digest()
