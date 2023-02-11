@@ -445,7 +445,7 @@ def update_txt_record_helper(
         target_rrset = []
 
     if edit_action == EditActionEnum.ADD:
-        if any([rr_content == existing['content'] for existing in target_rrset]):
+        if any([rr_content == existing["content"] for existing in target_rrset]):
             logging.debug("Adding a duplicated, no action needed")
             return
 

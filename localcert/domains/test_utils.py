@@ -24,10 +24,12 @@ def randomDns01ChallengeResponse() -> str:
     m.update(str(uuid4()).encode("utf-8"))
     return urlsafe_b64encode(m.digest()).decode("utf-8").replace("=", "")
 
+
 def strip_trailing_dot(value: str) -> str:
-    if value.endswith('.'):
+    if value.endswith("."):
         value = value[0:-1]
     return value
+
 
 class AlwaysSucceed(TestCase):
     def test_pass(self):

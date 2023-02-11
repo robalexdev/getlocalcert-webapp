@@ -15,6 +15,6 @@ def strip_quot(value: str):
 
 @register.filter
 def strip_trailing_dot(value: str):
-    if value.endswith('.'):
+    if value.endswith("."):
         value = value[0:-1]
     return value

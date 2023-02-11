@@ -371,7 +371,9 @@ class TestDeleteResourceRecord(WithZoneTests):
                 "rr_content": "not an acme challenge",
             },
         )
-        self.assertContains(response, "challenge response must be base64url encoded", status_code=400)
+        self.assertContains(
+            response, "challenge response must be base64url encoded", status_code=400
+        )
 
     def test_cannot_modify_subdomain_acme_record(self):
         self.client.force_login(self.testUser)
@@ -490,4 +492,6 @@ class TestZoneApiKey(WithZoneTests):
                 "secret_key_id": "not a uuid",
             },
         )
-        self.assertContains(response, "secret_key_id: Enter a valid value", status_code=400)
+        self.assertContains(
+            response, "secret_key_id: Enter a valid value", status_code=400
+        )
