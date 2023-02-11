@@ -93,7 +93,7 @@ def create_free_domain(
 
     # localhostcert.net has predefined A records locked to localhost
     records = [{"content": "127.0.0.1", "disabled": False}]
-    pdns_replace_rrset(zone_name, zone_name, "A", 3600, records)
+    pdns_replace_rrset(zone_name, zone_name, "A", 864000, records)
 
     # Create domain in DB
     newZone = Zone.objects.create(
