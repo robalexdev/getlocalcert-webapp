@@ -1,7 +1,9 @@
 import requests
 
 from .utils import CustomExceptionServerError
+from datetime import datetime
 from django.conf import settings
+from typing import List
 
 
 PDNS_API_BASE_URL = f"http://{settings.LOCALCERT_PDNS_SERVER_IP}:{settings.LOCALCERT_PDNS_API_PORT}/api/v1"
@@ -74,10 +76,32 @@ def pdns_delete_rrset(zone_name: str, rr_name: str, rrtype: str):
     return
 
 
-def pdns_replace_rrset(zone_name: str, rr_name: str, rr_type: str, ttl: int, records):
+def pdns_replace_rrset(
+    zone_name: str, rr_name: str, rr_type: str, ttl: int, record_contents: List[str]
+):
+    """
+
+    record_contents - Records from least recently added
+    """
     assert rr_name.endswith(".")
     assert rr_name.endswith(zone_name)
     assert rr_type in ["TXT", "A"]
+
+    records = [
+        {
+            "content": content,
+            "disabled": False,
+        }
+        for content in record_contents
+    ]
+    comments = [
+        {
+            "content": f"{record_contents[idx]} : {idx}",
+            "account": "",
+            "modified_at": int(datetime.now().timestamp()),
+        }
+        for idx in range(len(record_contents))
+    ]
 
     resp = requests.patch(
         f"{PDNS_API_BASE_URL}/servers/localhost/zones/{zone_name}",
@@ -90,6 +114,7 @@ def pdns_replace_rrset(zone_name: str, rr_name: str, rr_type: str, ttl: int, rec
                     "changetype": "REPLACE",
                     "ttl": ttl,
                     "records": records,
+                    "comments": comments,
                 },
             ],
         },

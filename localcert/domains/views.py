@@ -46,6 +46,7 @@ from domains.forms import (
     DescribeZoneForm,
 )
 from enum import Enum
+from typing import List
 
 
 @use_custom_errors
@@ -92,8 +93,7 @@ def create_free_domain(
     pdns_create_zone(zone_name)
 
     # localhostcert.net has predefined A records locked to localhost
-    records = [{"content": "127.0.0.1", "disabled": False}]
-    pdns_replace_rrset(zone_name, zone_name, "A", 864000, records)
+    pdns_replace_rrset(zone_name, zone_name, "A", 864000, ["127.0.0.1"])
 
     # Create domain in DB
     newZone = Zone.objects.create(
@@ -428,54 +428,72 @@ def update_txt_record_helper(
     rr_content: str,
     replace_oldest: bool = False,
 ):
-    details = pdns_describe_domain(zone_name)
-
-    # Wrap in quotes
-    rr_content = f'"{rr_content}"'
-
-    if details["rrsets"]:
-        for rrset in details["rrsets"]:
-            if rrset["name"] == rr_name and rrset["type"] == "TXT":
-                # found it
-                target_rrset = rrset["records"]
-                break
-        else:
-            target_rrset = []
-    else:
-        target_rrset = []
+    new_content = f'"{rr_content}"'  # Normalize
+    ordered_content = get_existing_txt_records(zone_name, rr_name)
 
     if edit_action == EditActionEnum.ADD:
-        if any([rr_content == existing["content"] for existing in target_rrset]):
-            logging.debug("Adding a duplicated, no action needed")
+        if any([new_content == existing for existing in ordered_content]):
+            logging.debug("Content to add already exists")
             return
 
-        if len(target_rrset) >= TXT_RECORDS_PER_RRSET_LIMIT:
+        if len(ordered_content) < TXT_RECORDS_PER_RRSET_LIMIT:
+            # existing content set is small enough, just merge in the new content
+            new_content_set = ordered_content
+        else:
             if replace_oldest:
-                # TODO: This does NOT work. Need to track better
-                target_rrset = target_rrset[0:-1]
+                # keep only the newest of the existing content
+                new_content_set = [ordered_content[-1]]
             else:
+                # In the web interface, the user should delete records manually
                 raise CustomExceptionBadRequest(
                     "Limit exceeded, unable to add additional TXT records. Try deleting unneeded records."
                 )
-        target_rrset.append(
-            {
-                "content": rr_content,
-                "disabled": False,
-            }
-        )
+        new_content_set.append(new_content)
     else:
         assert edit_action == EditActionEnum.REMOVE
-        sz = len(target_rrset)
-        target_rrset = [item for item in target_rrset if item["content"] != rr_content]
-        if len(target_rrset) == sz:
+        new_content_set = [item for item in ordered_content if item != new_content]
+        if len(new_content_set) == len(ordered_content):
             # TODO: This should 301 redirect with a warning message that nothing was removed
             raise Http404("Item to remove was not found")
 
-    if target_rrset:
-        logging.info(f"Updating RRSET {rr_name} TXT with {len(target_rrset)} values")
+    if new_content_set:
+        logging.info(f"Updating RRSET {rr_name} TXT with {len(new_content_set)} values")
         # Replace to update the content
-        pdns_replace_rrset(zone_name, rr_name, "TXT", 10, target_rrset)
+        pdns_replace_rrset(zone_name, rr_name, "TXT", 1, new_content_set)
     else:
         logging.info(f"Deleting RRSET {rr_name} TXT")
         # Nothing remaining, delete the rr_set
         pdns_delete_rrset(zone_name, rr_name, "TXT")
+
+
+def get_existing_txt_records(zone_name: str, rr_name: str) -> List[str]:
+    details = pdns_describe_domain(zone_name)
+    existing_records = []
+    existing_comments = []
+    if details["rrsets"]:
+        for rrset in details["rrsets"]:
+            if rrset["name"] == rr_name and rrset["type"] == "TXT":
+                existing_records = rrset["records"]
+                existing_comments = rrset["comments"]
+                break
+
+    # Check invariants
+    for record in existing_records:
+        assert any(
+            [
+                comment["content"].startswith(f"{record['content']} : ")
+                for comment in existing_comments
+            ]
+        )
+    assert len(existing_comments) == len(existing_records)
+
+    # Each comment will contain "<content> : <index>" where <content> matches the TXT record
+    # content and <index> tracks the order these were added (oldest at index 0)
+    # Sort these so we can trim old content if needed
+    ordered_comments = sorted(
+        existing_comments, key=lambda x: int(x["content"].split(" : ")[1])
+    )
+    ordered_content = [
+        comment["content"].split(" : ")[0] for comment in ordered_comments
+    ]
+    return ordered_content

@@ -96,30 +96,48 @@ class TestAcmeApi(WithApiKey):
         )
 
     def test_update_txt_records_drops_oldest(self):
-        values = []
-        # add records until overflow occurs
-        for _ in range(TXT_RECORDS_PER_RRSET_LIMIT + 1):
-            challenge_b64 = self._make_challenge()
-            response = self._acmedns_update(challenge_b64)
-            self.assertTrue(200, response.status_code)
-            values.append(challenge_b64)
+        assert TXT_RECORDS_PER_RRSET_LIMIT == 2, "Update this code"
+        challenge_one = "a" * 43
+        challenge_two = "b" * 43
+        challenge_three = "c" * 43
 
-        # Also check that we can see the record in the UI
         self.client.force_login(self.testUser)
+
+        # Add first record
+        response = self._acmedns_update(challenge_one)
+        self.assertContains(response, challenge_one)
+
+        # Make sure first record is present
         response = self.client.get(
-            reverse(
-                describe_zone,
-            ),
+            reverse(describe_zone),
             {"zone_name": self.zone.name},
         )
+        self.assertContains(response, challenge_one)
 
-        # Only the two newest should exist
-        self.assertContains(response, values[-1])
+        # Add second record
+        response = self._acmedns_update(challenge_two)
+        self.assertContains(response, challenge_two)
 
-        # TODO: This is broken!
-        # self.assertContains(response, values[-2])
-        # but not the oldest
-        # self.assertNotContains(response, values[0])
+        # Make sure both records are present
+        response = self.client.get(
+            reverse(describe_zone),
+            {"zone_name": self.zone.name},
+        )
+        self.assertContains(response, challenge_one)
+        self.assertContains(response, challenge_two)
+
+        # Add third record, trigger overlow
+        response = self._acmedns_update(challenge_three)
+        self.assertContains(response, challenge_three)
+
+        # Make sure oldest record is gone, other two are present
+        response = self.client.get(
+            reverse(describe_zone),
+            {"zone_name": self.zone.name},
+        )
+        self.assertNotContains(response, challenge_one)
+        self.assertContains(response, challenge_two)
+        self.assertContains(response, challenge_three)
 
     def test_update_cannot_change_subdomains(self):
         challenge_b64 = self._make_challenge()
