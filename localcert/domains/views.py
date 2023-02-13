@@ -207,6 +207,7 @@ def create_zone_api_key(
         )
 
     zoneKey, secret = ZoneApiKey.create(zone)
+    logging.info(f"API Key created for {request.user} {zone.name}: {zoneKey.id}")
     return render(
         request,
         "show_new_api_key.html",
@@ -237,6 +238,7 @@ def delete_zone_api_key(
 
     secretKeyId = form.cleaned_data["secret_key_id"]
     zoneKey = ZoneApiKey.objects.filter(id=secretKeyId).first()
+    zone_name = zoneKey.zone.name
 
     if not zoneKey or zoneKey.zone.owner != request.user:
         raise CustomExceptionBadRequest(
@@ -244,12 +246,14 @@ def delete_zone_api_key(
         )
 
     zoneKey.delete()
+
+    logging.info(f"API Key deleted for {request.user} {zone_name}: {zoneKey.id}")
     messages.success(request, "API Key deleted")
 
     return redirect(
         build_url(
             "describe_zone",
-            params={"zone_name": zoneKey.zone.name},
+            params={"zone_name": zone_name},
         )
     )
 
