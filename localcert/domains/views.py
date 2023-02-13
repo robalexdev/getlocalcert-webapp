@@ -26,10 +26,10 @@ from .utils import (
     CustomExceptionBadRequest,
     build_url,
 )
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count
 from django.http import (
-    Http404,
     HttpRequest,
     HttpResponse,
     JsonResponse,
@@ -103,7 +103,7 @@ def create_free_domain(
 
     logging.info(f"Created domain {newZone.name} for user {request.user.id}")
 
-    # TODO success message
+    messages.success(request, f"Created {newZone.name}")
     return redirect(
         build_url(
             "describe_zone",
@@ -201,14 +201,12 @@ def create_zone_api_key(
             "Domain does not exist, or you are not the owner",
             status_code=404,
         )
-
     if zone.zoneapikey__count >= API_KEY_PER_ZONE_LIMIT:
         raise CustomExceptionBadRequest(
             "Cannot create more API keys for zone",
         )
 
     zoneKey, secret = ZoneApiKey.create(zone)
-
     return render(
         request,
         "show_new_api_key.html",
@@ -246,8 +244,8 @@ def delete_zone_api_key(
         )
 
     zoneKey.delete()
+    messages.success(request, "API Key deleted")
 
-    # TODO success message
     return redirect(
         build_url(
             "describe_zone",
@@ -309,11 +307,12 @@ def acmedns_api_update(
         )
 
     update_txt_record_helper(
+        request=request,
         zone_name=zone.name,
         rr_name=f"{ACME_CHALLENGE_LABEL}.{zone.name}",
         edit_action=EditActionEnum.ADD,
         rr_content=txt,
-        replace_oldest=True,
+        is_web_request=False,
     )
 
     return JsonResponse({"txt": txt})
@@ -346,11 +345,12 @@ def delete_record(
 
         rr_name = f"{ACME_CHALLENGE_LABEL}.{zone.name}"
         update_txt_record_helper(
+            request=request,
             zone_name=zone.name,
             rr_name=rr_name,
             edit_action=EditActionEnum.REMOVE,
             rr_content=rr_content,
-            replace_oldest=False,
+            is_web_request=True,
         )
 
         return redirect(
@@ -395,11 +395,12 @@ def add_record(
 
         rr_name = f"{ACME_CHALLENGE_LABEL}.{zone.name}"
         update_txt_record_helper(
+            request=request,
             zone_name=zone.name,
             rr_name=rr_name,
             edit_action=EditActionEnum.ADD,
             rr_content=rr_content,
-            replace_oldest=False,
+            is_web_request=True,
         )
 
         return redirect(
@@ -422,25 +423,27 @@ class EditActionEnum(Enum):
 
 
 def update_txt_record_helper(
+    request: HttpRequest,
     zone_name: str,
     rr_name: str,
     edit_action: EditActionEnum,
     rr_content: str,
-    replace_oldest: bool = False,
+    is_web_request: str,
 ):
     new_content = f'"{rr_content}"'  # Normalize
     ordered_content = get_existing_txt_records(zone_name, rr_name)
 
     if edit_action == EditActionEnum.ADD:
         if any([new_content == existing for existing in ordered_content]):
-            logging.debug("Content to add already exists")
+            if is_web_request:
+                messages.warning(request, "Record already exists")
             return
 
         if len(ordered_content) < TXT_RECORDS_PER_RRSET_LIMIT:
             # existing content set is small enough, just merge in the new content
             new_content_set = ordered_content
         else:
-            if replace_oldest:
+            if not is_web_request:
                 # keep only the newest of the existing content
                 new_content_set = [ordered_content[-1]]
             else:
@@ -453,8 +456,9 @@ def update_txt_record_helper(
         assert edit_action == EditActionEnum.REMOVE
         new_content_set = [item for item in ordered_content if item != new_content]
         if len(new_content_set) == len(ordered_content):
-            # TODO: This should 301 redirect with a warning message that nothing was removed
-            raise Http404("Item to remove was not found")
+            if is_web_request:
+                messages.warning(request, "Nothing was removed")
+            return
 
     if new_content_set:
         logging.info(f"Updating RRSET {rr_name} TXT with {len(new_content_set)} values")
@@ -464,6 +468,11 @@ def update_txt_record_helper(
         logging.info(f"Deleting RRSET {rr_name} TXT")
         # Nothing remaining, delete the rr_set
         pdns_delete_rrset(zone_name, rr_name, "TXT")
+    if is_web_request:
+        if edit_action == EditActionEnum.ADD:
+            messages.success(request, "Record added")
+        else:
+            messages.success(request, "Record removed")
 
 
 def get_existing_txt_records(zone_name: str, rr_name: str) -> List[str]:

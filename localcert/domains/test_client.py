@@ -100,6 +100,7 @@ class TestCreateFreeDomains(WithUserTests):
         zone = zone[0]
 
         self.assertContains(response, strip_trailing_dot(zone.name), html=True)
+        self.assertContains(response, f"Created {zone.name}")
         self.assertRedirects(
             response, build_url(describe_zone, params={"zone_name": zone.name})
         )
@@ -267,14 +268,14 @@ class TestCreateResourceRecord(WithZoneTests):
             self.request_body,
             follow=True,
         )
-        # TODO: check message "was added"
+        self.assertContains(response, "Record added")
         self.assertContains(response, self.record_value)
         response = self.client.post(
             self.target_url,
             self.request_body,
             follow=True,
         )
-        # TODO: check message "already exists"
+        self.assertContains(response, "Record already exists")
         self.assertContains(response, self.record_value)
 
     def _helper_invalid_rrname(self, rrname, msg):
@@ -359,6 +360,7 @@ class TestDeleteResourceRecord(WithZoneTests):
 
         response = self.client.post(self.target_url, self.request_body, follow=True)
         self.assertRedirects(response, expected_redirect)
+        self.assertContains(response, "Record removed")
         self.assertContains(response, self.zone.name)
         self.assertNotContains(response, ACME_CHALLENGE_LABEL)
         self.assertNotContains(response, self.record_value)
@@ -402,8 +404,9 @@ class TestDeleteResourceRecord(WithZoneTests):
                 "zone_name": self.zone.name,
                 "rr_content": randomDns01ChallengeResponse(),
             },
+            follow=True,
         )
-        self.assertEqual(404, response.status_code)
+        self.assertContains(response, "Nothing was removed")
 
     def test_logged_out(self):
         self.assert_redirects_to_login_when_logged_out_on_post()
@@ -471,15 +474,14 @@ class TestZoneApiKey(WithZoneTests):
                 "zone_name": self.zone.name,
                 "secret_key_id": secretKeyId,
             },
+            follow=True,
         )
-        self.assertRedirects(
-            response,
-            build_url(
-                describe_zone,
-                params={"zone_name": self.zone.name},
-            ),
-            status_code=302,
+        expected_redirect = build_url(
+            describe_zone,
+            params={"zone_name": self.zone.name},
         )
+        self.assertEqual(expected_redirect, response.redirect_chain[0][0])
+        self.assertContains(response, "API Key deleted")
 
     def test_delete_key_invalid_input(self):
         # Delete key
