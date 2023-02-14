@@ -1,9 +1,21 @@
 {% include "page_start.html" %}
-{% include "page_head_end.html" %}
-
 {% load extra_filters %}
+{% include "page_head_end.html" %}
+{% include "top_of_page.html" %}
 
-<h4>Delete TXT Record</h4>
+<nav class="breadcrumb" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="/">Domains</a></li>
+    <li><a href="{% url 'describe_zone' %}?zone_name={{form.zone_name.value}}">{{ form.zone_name.value | strip_trailing_dot }}</a></li>
+    <li class="is-active"><a href="#" aria-current="page">Delete Record</a></li>
+  </ul>
+</nav>
+
+<h1 class="title is-3">Delete Record</h1>
+
+<p class="block">
+    Are you sure you want to delete this record?
+</p>
 
 <form
     action="{% url 'delete_record' %}"
@@ -12,33 +24,80 @@
 
 {% csrf_token %}
 
+<!-- TODO -->
 {{ form.non_field_errors }}
 
-<p class="fieldWrapper">
-    <label for="{{ form.zone_name.id_for_label }}">Record Name:</label>
-    <br />
-    <b>_acme-challenge.{{ form.zone_name.value | strip_trailing_dot }}</b>
-    {{ form.zone_name }}
-    <br />
-    {{ form.zone_name.errors }}
-</p>
-<p class="fieldWrapper">
-    <label for="TODO">Record Type:</label>
-    <br />
-    <b>TXT</b>
-    <br />
-</p>
-<p class="fieldWrapper">
-    <label for="{{ form.rr_content.id_for_label }}">Record Content:</label>
-    <br />
-    <input type="text" name="rr_content" value="{{ form.rr_content.value | strip_quot }}" hidden>
-    {{ form.rr_content.value }}
-    <br />
-    {{ form.rr_content.errors }}
-</p>
-<p>
-<input type="submit" value="Delete Record">
-</p>
+<div class="field is-horizontal">
+    <div class="field-label is-normal">
+        <label class="label">Name</label>
+    </div>
+    <div class="field-body">
+        <div class="field">
+          <p class="control">
+            {{ form.zone_name }}
+            <input
+                type="text"
+                readonly
+                class="input"
+                value="_acme-challenge.{{ form.zone_name.value | strip_trailing_dot }}">
+          </p>
+          {{ form.zone_name.errors }}
+        </div>
+    </div>
+</div>
+
+<div class="field is-horizontal">
+    <div class="field-label is-normal">
+        <label class="label">Type</label>
+    </div>
+    <div class="field-body">
+        <div class="field">
+          <p class="control">
+            <input
+                type="text"
+                readonly
+                class="input"
+                value="TXT">
+          </p>
+        </div>
+    </div>
+</div>
+
+<div class="field is-horizontal">
+    <div class="field-label is-normal">
+        <label class="label">Content</label>
+    </div>
+    <div class="field-body">
+        <div class="field">
+          <p class="control">
+            <input
+                type="text"
+                name="rr_content"
+                value="{{ form.rr_content.value | strip_quot }}"
+                hidden>
+            <input
+                type="text"
+                readonly
+                class="input"
+                value="{{ form.rr_content.value }}">
+          </p>
+          {{ form.rr_content.errors }}
+        </div>
+    </div>
+</div>
+
+<div class="field is-horizontal">
+    <div class="field-label is-normal">
+        <label class="label"></label>
+    </div>
+  <div class="field-body">
+    <div class="buttons">
+      <input class="button is-danger" type="submit" value="Delete Record">
+      <a href="{% url 'describe_zone' %}?zone_name={{form.zone_name.value}}" class="button is-secondary">Cancel</a>
+    </div>
+  </div>
+</div>
 </form>
 
+{% include "bottom_of_page.html" %}
 {% include "page_end.html" %}

@@ -1,9 +1,21 @@
 {% include "page_start.html" %}
+{% load extra_filters %}
 {% include "page_head_end.html" %}
+{% include "top_of_page.html" %}
 
-<h4>
+<nav class="breadcrumb" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="/">Domains</a></li>
+    <li><a href="#">{{ domain.name | strip_trailing_dot }}</a></li>
+    <li class="is-active"><a href="#" aria-current="page">Delete Key</a></li>
+  </ul>
+</nav>
+
+<h1 class="title is-3">Delete API Key</h1>
+
+<p class="block">
 Are you sure you want to delete this API Key?
-</h4>
+</p>
 
 <p><ul>
     <li>
@@ -31,4 +43,5 @@ Are you sure you want to delete this API Key?
 <input type="submit" value="Delete Key">
 </form>
 
+{% include "bottom_of_page.html" %}
 {% include "page_end.html" %}

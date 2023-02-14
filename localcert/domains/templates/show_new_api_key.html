@@ -1,54 +1,60 @@
 {% include "page_start.html" %}
-
 {% load extra_filters %}
-
-<style>
-
-table {
-    margin: 4em;
-}
-
-table th, table td {
-  padding: 0.6em;
-  border: 1px solid #000;
-}
-</style>
-
 {% include "page_head_end.html" %}
+{% include "top_of_page.html" %}
 
-<h3>API Key Created</h3>
+<nav class="breadcrumb" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="/">Domains</a></li>
+    <li><a href="{% url 'describe_zone' %}?zone_name={{domain}}">{{ domain | strip_trailing_dot }}</a></li>
+    <li class="is-active"><a href="#" aria-current="page">Created API key</a></li>
+  </ul>
+</nav>
 
-<p>
-Please save the following API key pair in a safe location.
+<h1 class="title is-3">API Key Created</h1>
+
+<p class="block">
+Please save your new API key pair in a safe location.
 </p>
 
-<p>
-The following API key pair has scoped access to allow setting a DNS TXT record for {{ domain | strip_trailing_dot }}.
+<p class="block">
+This key has scoped access to {{ domain | strip_trailing_dot }}.
 </p>
 
-<table>
-    <tr>
-        <th>Record</th>
-        <th>Key ID</th>
-        <th>Secret Key</th>
-    </tr>
-    <tr>
-        <td id="domain">{{ domain | strip_trailing_dot }}</td>
-        <td id="secretKeyId">{{ secretKeyId }}</td>
-        <td id="secretKey">{{ secretKey }}</td>
-    </tr>
+<table class="table">
+  <tr>
+    <th>
+      Domain
+    </th>
+    <td class="is-size-5">
+      {{ domain | strip_trailing_dot }}
+    </td>
+  </tr>
+  <tr>
+    <th>
+      Key ID
+    </th>
+    <td id="secretKeyId" class="is-size-5">
+      {{ secretKeyId }}
+    </td>
+  </tr>
+  <tr>
+    <th>
+      Secret Key
+    </th>
+    <td id="secretKey" class="is-size-5">
+      {{ secretKey }}
+    </td>
+  </tr>
 </table>
 
-<p>
-This is the only time the key pair will be shown. You can recreate the key later if needed.
+<p class="block">
+  Read the <a href="TODO">docs</a> for information on using your API key pair.
 </p>
 
-<p>
-Read the <a href="TODO">docs</a> for information on using your API key pair.
+<p class="block">
+<a class="button is-primary" href="{{ describe_zone_url }}">Continue</a>
 </p>
 
-<p>
-<a href="{{ describe_zone_url }}">Continue</a>
-</p>
-
+{% include "bottom_of_page.html" %}
 {% include "page_end.html" %}

@@ -146,6 +146,7 @@ def describe_zone(
     keys = [_ for _ in zone.zoneapikey_set.all()]
 
     details = pdns_describe_domain(zone.name)
+    records = sorted(details["rrsets"], key=lambda x: x["type"])
 
     txt_records = [rrset for rrset in details["rrsets"] if rrset["type"] == "TXT"]
     if len(txt_records) == 0:
@@ -167,7 +168,7 @@ def describe_zone(
             ),
             "keys": keys,
             "can_create_api_key": len(keys) < API_KEY_PER_ZONE_LIMIT,
-            "rrsets": details["rrsets"],
+            "rrsets": records,
             "can_add_records": can_add_records,
         },
     )

@@ -1,134 +1,121 @@
 {% include "page_start.html" %}
-
 {% load extra_filters %}
-
-<style>
-  table th, table td {
-    padding: 1em;
-    border: 1px solid #aaa;
-  }
-</style>
-
 {% include "page_head_end.html" %}
+{% include "top_of_page.html" %}
 
-{% if messages %}
-<ul class="messages">
-    {% for message in messages %}
-    <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
-    {% endfor %}
-</ul>
-{% endif %}
+<nav class="breadcrumb" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="/">Domains</a></li>
+    <li class="is-active"><a href="#" aria-current="page">{{ domain.name | strip_trailing_dot }}</a></li>
+  </ul>
+</nav>
 
-<h3>Records for {{ domain.name | strip_trailing_dot }}</h3>
+<h1 class="title is-2">{{ domain.name | strip_trailing_dot }}</h1>
 
-<table>
-    <tr>
-        <th>rrname</th>
+<div class="box">
+  <h2 class="title is-4">Records</h2>
+
+  <p class="block">Manage DNS records for your domain.<p>
+
+  <table class="table is-striped is-hoverable is-fullwidth">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Name</th>
         <th>TTL</th>
-        <th>type</th>
         <th>Content</th>
-    </tr>
-    {% for rrset in rrsets %}
-    {% if rrset.type != "SOA" %}
-    <tr class="{{ rrset.type }}">
-        <td>
-            {{ rrset.name | strip_trailing_dot }}
-        </td>
-        <td>
-            {{ rrset.ttl }}
-        </td>
-        <td>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rrset in rrsets %}
+      {% if rrset.type != "SOA" %}
+        {% for record in rrset.records %}
+        <tr>
+          <td>
             {{ rrset.type }}
-        </td>
-        <td>
-            <ul>
-            {% for record in rrset.records %}
-                <p>
-                {{ record.content }}
-                <form action="{% url 'delete_record' %}" method="get">
-                    <input type="hidden" name="zone_name" value="{{ domain.name }}">
-                    <input type="hidden" name="rr_content" value="{{ record.content }}">
-                    <input 
-                      type="submit" 
-                      {% if rrset.type != "TXT" %}
-                        disabled
-                        title="Cannot delete"
-                      {% endif %}
-                      value="x">
-                </form>
-                </p>
-            {% endfor %}
-            </ul>
-        </td>
-    </tr>
-    {% endif %}
-    {% endfor %}
-</table>
+          </td>
+          <td title="{{ rrset.name }}">
+          {{ rrset.name | strip_domain_name }}
+          </td>
+          <td>
+          {{ rrset.ttl }}
+          </td>
+          <td>
+          {{ record.content }}
+          </td>
+          <td>
+          {% if rrset.type == "TXT" and rrset.name|startswith:"_acme-challenge" %}
+          <a class="button is-danger is-small is-outlined" href="{% url 'delete_record' %}?zone_name={{domain.name}}&rr_content={{record.content}}">Delete</a>
+          {% else %}
+          <span title="This record cannot be modified">🔒</span>
+          {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
 
-{% if can_add_records %}
-<a href="{{ create_resource_record_url }}">Add Record</a>
-{% endif %}
+  {% if can_add_records %}
+    <a href="{{ create_resource_record_url }}">Add Record</a>
+  {% else %}
+    <p class="block">Unable to add more TXT records. Delete unneeded records to create more.</p>
+  {% endif %}
+</div>
 
-<h2>API Keys</h2>
+<div class="box">
+  <h2 class="title is-4">API Keys</h2>
 
-The following API keys are scoped to this domain.
+  {% if keys|length == 0 %}
+    <p class="block">You don't have any API keys for this domain.</p>
+  {% else %}
+    <p class="block">The following API keys are scoped to this domain.</p>
 
-<table>
-    <tr>
+    <table class="table is-striped is-hoverable is-fullwidth">
+    <thead>
+      <tr>
         <th>Key ID</th>
-        <th>Last Used</th>
+        <th>Last used</th>
         <th>Created</th>
-        <th>Delete</th>
-    </tr>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
     {% for key in keys %}
       <tr>
         <td>{{key.id}}</td>
-        <td>{{key.last_used}}</td>
-        <td>{{key.created}}</td>
+        <td><i>{{key.last_used}}</i></td>
+        <td><i>{{key.created}}</i></td>
         <td>
           <form action="{% url 'delete_zone_api_key' %}" method="post">
             {% csrf_token %}
             <input name="secret_key_id" type="text" hidden value="{{ key.id }}">
-            <input type="submit" value="x">
+            <input class="button is-danger is-outlined is-small" type="submit" value="Delete">
           </form>
         </td>
       </tr>
     {% endfor %}
-</table>
+    </tbody>
+    </table>
+  {% endif %}
 
-{% if can_create_api_key %}
-<form action="{% url 'create_zone_api_key' %}" method="post">
-  {% csrf_token %}
-  <input type="text" name="zone_name" hidden value="{{ domain.name }}">
-  <input type="submit" value="Create new API key">
-</form>
-{% endif %}
+  {% if can_create_api_key %}
+  <form action="{% url 'create_zone_api_key' %}" method="post">
+    {% csrf_token %}
+    <input type="text" name="zone_name" hidden value="{{ domain.name }}">
+    <input class="button is-secondary" type="submit" value="Create new API key">
+  </form>
+  {% else %}
+    <p class="block">
+    You've created the maximum number of API keys.
+    Please delete any unneeded keys to create more.
+    </p>
+  {% endif %}
+</div>
 
-<p>
 <i>Domain active since {{domain.created}}</i>
-</p>
 
-<hr style="margin: 4em 0em 4em;">
-
-<p>
-The free tier allows you to create up to <b>three subdomains</b>.
-This matches the certificate limits of <a href="TODO link here">ZeroSSL</a>'s Free plan.
-You may try to use Let's Encrypt, although our domain is currently limited to 50 certificates per week <i>shared across all users</i>, so this may not work for you.
-</p>
-
-<p>
-In the short term, if you need more than three certificates purchase a Basic <a href="TODO link here">ZeroSSL</a> account and <a href="TODO contact">Contact Us</a>.
-</p>
-
-<p>
-Once our Let's Encrypt limit has increased, we will greatly increase the subdomain limits for our free tier customers.
-Thank you for your patience.
-</p>
-
-<p><i>
-Referral notice: The ZeroSSL links above contain affiliate codes, and we receive a commission if you subscribe using our links.
-ZeroSSL is a great service for customers needing additional certificates beyond what Let's Encrypt offers.
-Any commissions we receive help us offset hosting costs for our free tier.
-</i></p>
-
+{% include "bottom_of_page.html" %}
 {% include "page_end.html" %}

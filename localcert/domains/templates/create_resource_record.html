@@ -1,27 +1,19 @@
 {% include "page_start.html" %}
-
 {% load extra_filters %}
-
-<style>
-    input[type="text"] {
-        width: 60em;
-    }
-    input:read-only {
-        background-color: #e4e4e4;
-    }
-</style>
-
 {% include "page_head_end.html" %}
+{% include "top_of_page.html" %}
 
-<h4>Create Record</h4>
+<nav class="breadcrumb" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="/">Domains</a></li>
+    <li><a href="{% url 'describe_zone' %}?zone_name={{form.zone_name.value}}">
+        {{ form.zone_name.value | strip_trailing_dot }}
+    </a></li>
+    <li class="is-active"><a href="#" aria-current="page">Create Record</a></li>
+  </ul>
+</nav>
 
-<p>
-localhostcert.net only support TXT records for ACME DNS-01 challenges.
-</p>
-
-<p>
-You may manually set your challenge response here, or check the <a href="TODO">docs</a> to configure your ACME client to automate issuance and renewals.
-</p>
+<h1 class="title is-3">Create Record</h1>
 
 <form
     action="{% url 'add_record' %}"
@@ -32,30 +24,81 @@ You may manually set your challenge response here, or check the <a href="TODO">d
 
 {{ form.non_field_errors }}
 
-<p class="fieldWrapper">
-    <label for="{{ form.zone_name.id_for_label }}">Record Name:</label>
-    <br />
-    <b>_acme-challenge.{{ form.zone_name.value | strip_trailing_dot }}</b>
-    {{ form.zone_name }}
-    <br />
-    {{ form.zone_name.errors }}
-</p>
-<p class="fieldWrapper">
-    <label for="TODO">Record Type:</label>
-    <br />
-    <b>TXT</b>
-    <br />
-</p>
-<p class="fieldWrapper">
-    <label for="{{ form.rr_content.id_for_label }}">Record Content:</label>
-    <br />
-    {{ form.rr_content }}
-    <br />
-    {{ form.rr_content.errors }}
-</p>
-<p>
-<input type="submit" value="Create Record">
-</p>
+<div class="field is-horizontal">
+    <div class="field-label is-normal">
+        <label class="label">Name</label>
+    </div>
+    <div class="field-body">
+        <div class="field">
+          <p class="control">
+            {{ form.zone_name }}
+            <input
+                type="text"
+                readonly
+                class="input"
+                value="_acme-challenge.{{ form.zone_name.value | strip_trailing_dot }}">
+          </p>
+          {{ form.zone_name.errors }}
+        </div>
+    </div>
+</div>
+
+<div class="field is-horizontal">
+    <div class="field-label is-normal">
+        <label class="label">Type</label>
+    </div>
+    <div class="field-body">
+        <div class="field">
+          <p class="control">
+            <input
+                type="text"
+                readonly
+                class="input is-static"
+                value="TXT">
+          </p>
+        </div>
+    </div>
+</div>
+
+<div class="field is-horizontal">
+  <div class="field-label is-normal">
+    <label class="label">Content</label>
+  </div>
+  <div class="field-body">
+    <div class="field">
+      <p class="control">
+        <input class="input" name="rr_content" id="rr_content" type="text" placeholder="ACME Challenge Response">
+        {% if form.rr_content.errors %}
+        {% for error in form.rr_content.errors %}
+          <p class="help is-size-6 is-danger">{{ error|escape }}</p>
+        {% endfor %}
+        {% endif %}
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="field is-horizontal">
+    <div class="field-label is-normal">
+        <label class="label"></label>
+    </div>
+  <div class="field-body">
+    <div class="buttons">
+      <input class="button is-primary" type="submit" value="Create Record">
+      <a href="{% url 'describe_zone' %}?zone_name={{form.zone_name.value}}" class="button is-secondary">Cancel</a>
+    </div>
+  </div>
+</div>
+
 </form>
 
+<div class="notification is-info is-light">
+  Check the <a href="TODO">docs</a> to configure your ACME client to automate certificate issuance and renewals.
+</div>
+
+<div class="notification is-warning is-light">
+  localhostcert.net only supports TXT records for ACME DNS-01 challenges.
+</div>
+
+{% include "bottom_of_page.html" %}
 {% include "page_end.html" %}

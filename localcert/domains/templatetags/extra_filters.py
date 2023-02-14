@@ -18,3 +18,21 @@ def strip_trailing_dot(value: str):
     if value.endswith("."):
         value = value[0:-1]
     return value
+
+
+@register.filter
+def strip_domain_name(value: str):
+    if value.endswith("."):
+        value = value[0:-1]
+    parts = value.split(".")
+    parts.pop()  # net
+    parts.pop()  # localhostcert
+    parts.pop()  # <domain>
+    if len(parts) == 0:
+        return "@"
+    return ".".join(parts)
+
+
+@register.filter
+def startswith(value: str, arg: str):
+    return value.startswith(arg)

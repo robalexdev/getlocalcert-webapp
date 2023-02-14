@@ -159,8 +159,8 @@ class WithZoneTests(WithUserTests):
 
     def _parse_api_key_response(self, response: HttpResponse) -> Tuple[str, str]:
         soup = bs(response.content.decode("utf-8"), "html.parser")
-        secretKeyID = soup.find(id="secretKeyId").text
-        secretKey = soup.find(id="secretKey").text
+        secretKeyID = soup.find(id="secretKeyId").text.strip()
+        secretKey = soup.find(id="secretKey").text.strip()
         return secretKeyID, secretKey
 
 

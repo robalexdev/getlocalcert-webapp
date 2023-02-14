@@ -1,45 +1,43 @@
 {% include "page_start.html" %}
-
 {% load extra_filters %}
-
-<style>
-  table th, table td {
-    padding: 2em;
-    border: 1px solid #aaa;
-  }
-</style>
-
 {% include "page_head_end.html" %}
+{% include "top_of_page.html" %}
 
-{% if messages %}
-<ul class="messages">
-    {% for message in messages %}
-    <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
-    {% endfor %}
-</ul>
+<nav class="breadcrumb" aria-label="breadcrumbs">
+  <ul>
+    <li class="is-active"><a href="/">Domains</a></li>
+  </ul>
+</nav>
+
+
+<h1 class="title is-2">My Domains</h1>
+
+{% if zones|length > 0 %}
+  {% for zone in zones %}
+  <section class="section">
+    <h2 class="subtitle is-4">
+      {{ zone.name | strip_trailing_dot }}
+    </h2>
+    <a href="{{ zone.url }}">
+      Manage
+    </a>
+  </section>
+  {% endfor %}
+{% else %}
+  <p class="block">
+    Create a domain to get started.
+  </p>
 {% endif %}
 
-<h3>Domains</h3>
-
-<table>
-{% for zone in zones %}
-<tr>
-  <th>{{ zone.name | strip_trailing_dot }}</th>
-  <td><a href="{{ zone.url }}">Manage</a></td>
-</tr>
-{% endfor %}
-</table>
-
 {% if zones|length < domain_limit %}
-
 <form
     action="{% url 'create_free_domain' %}"
     method="post">
-{% csrf_token %}
-<input type="submit" value="Create Free Domain">
+  {% csrf_token %}
+  <input class="button is-primary" type="submit" value="Create Free Domain">
 </form>
-
 
 {% endif %}
 
+{% include "bottom_of_page.html" %}
 {% include "page_end.html" %}
