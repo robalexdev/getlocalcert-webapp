@@ -185,10 +185,10 @@ LOGGING = {
 
 # CSP settings
 # See: https://django-csp.readthedocs.io/en/latest/configuration.html
-CSP_DEFAULT_SRC=("'none'",)
-CSP_IMG_SRC=("'self'",)
-CSP_STYLE_SRC=("https://cdn.jsdelivr.net",)
-CSP_INCLUDE_NONCE_IN=['script-src']
+CSP_DEFAULT_SRC = ("'none'",)
+CSP_IMG_SRC = ("'self'",)
+CSP_STYLE_SRC = ("https://cdn.jsdelivr.net",)
+CSP_INCLUDE_NONCE_IN = ["script-src"]
 
 
 # App specific settings
