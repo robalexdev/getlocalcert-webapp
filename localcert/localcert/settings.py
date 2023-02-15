@@ -70,6 +70,7 @@ SOCIALACCOUNT_PROVIDERS = {
 MIDDLEWARE = [
     # Debug Toolbar
     # "debug_toolbar.middleware.DebugToolbarMiddleware",
+    "csp.middleware.CSPMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -181,6 +182,14 @@ LOGGING = {
         "level": "DEBUG",
     },
 }
+
+# CSP settings
+# See: https://django-csp.readthedocs.io/en/latest/configuration.html
+CSP_DEFAULT_SRC=("'none'",)
+CSP_IMG_SRC=("'self'",)
+CSP_STYLE_SRC=("https://cdn.jsdelivr.net",)
+CSP_INCLUDE_NONCE_IN=['script-src']
+
 
 # App specific settings
 
