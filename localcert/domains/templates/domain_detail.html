@@ -29,7 +29,6 @@
     </thead>
     <tbody>
       {% for rrset in rrsets %}
-      {% if rrset.type != "SOA" %}
         {% for record in rrset.records %}
         <tr>
           <td>
@@ -53,6 +52,8 @@
             &nbsp;
             {% if rrset.type == "A" %}
               <a title="Learn more" href="TODO DOCS localhost">?</a>
+            {% elif rrset.type == "SOA" %}
+              <a title="Learn more" href="TODO DOCS soa">?</a>
             {% else %}
               <a title="Learn more" href="TODO DOCS mail">?</a>
             {% endif %}
@@ -60,7 +61,6 @@
           </td>
         </tr>
         {% endfor %}
-      {% endif %}
       {% endfor %}
     </tbody>
   </table>
