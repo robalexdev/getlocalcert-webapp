@@ -1,4 +1,5 @@
 import logging
+from typing import Dict
 
 from django.http import (
     HttpResponse,
@@ -66,3 +67,16 @@ def build_url(*args, **kwargs):
     if params:
         url += "?" + urlencode(params)
     return url
+
+
+def sort_records_key(record: Dict[str, str]) -> str:
+    """
+    Sort records so that:
+      User modifiable come first
+      Records are sorted by type
+      Then name
+    """
+    rr_type = record["type"]
+    name = record["name"]
+    is_user_modifiable = rr_type == "TXT" and name.startswith("_acme-challenge.")
+    return f"{0 if is_user_modifiable else 1} {rr_type} {name}"

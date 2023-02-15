@@ -39,7 +39,7 @@
           {{ rrset.name | strip_domain_name }}
           </td>
           <td>
-          {{ rrset.ttl }}
+          {{ rrset.ttl | namedDuration }}
           </td>
           <td>
           {{ record.content }}
@@ -48,7 +48,14 @@
           {% if rrset.type == "TXT" and rrset.name|startswith:"_acme-challenge" %}
           <a class="button is-danger is-small is-outlined" href="{% url 'delete_record' %}?zone_name={{domain.name}}&rr_content={{record.content}}">Delete</a>
           {% else %}
-          <span title="This record cannot be modified">🔒</span>
+            &nbsp;
+            <span title="This record cannot be modified">🔒</span>
+            &nbsp;
+            {% if rrset.type == "A" %}
+              <a title="Learn more" href="TODO DOCS localhost">?</a>
+            {% else %}
+              <a title="Learn more" href="TODO DOCS mail">?</a>
+            {% endif %}
           {% endif %}
           </td>
         </tr>

@@ -36,3 +36,25 @@ def strip_domain_name(value: str):
 @register.filter
 def startswith(value: str, arg: str):
     return value.startswith(arg)
+
+
+@register.filter
+def namedDuration(value: str):
+    i = int(value)
+    if i % (24 * 60 * 60) == 0:
+        i //= 24 * 60 * 60
+        return pluralize(i, "day")
+    if i % (60 * 60) == 0:
+        i //= 60 * 60
+        return pluralize(i, "hour")
+    if i % 60 == 0:
+        i //= 60
+        return pluralize(i, "minute")
+    return pluralize(i, "second")
+
+
+def pluralize(i: int, name: str):
+    if i <= 1:
+        return f"{i} {name}"
+    else:
+        return f"{i} {name}s"

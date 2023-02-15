@@ -85,7 +85,7 @@ def pdns_replace_rrset(
     """
     assert rr_name.endswith(".")
     assert rr_name.endswith(zone_name)
-    assert rr_type in ["TXT", "A"]
+    assert rr_type in ["TXT", "A", "MX"]
 
     records = [
         {
@@ -121,7 +121,9 @@ def pdns_replace_rrset(
     )
 
     if resp.status_code != requests.codes.no_content:
-        raise CustomExceptionServerError(f"{resp.status_code}")
+        raise CustomExceptionServerError(
+            f"{resp.status_code}: {resp.content.decode('utf-8')}"
+        )
 
     # success
     return

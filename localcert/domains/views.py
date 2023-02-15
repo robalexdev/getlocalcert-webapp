@@ -3,6 +3,10 @@ import logging
 from .constants import (
     ACME_CHALLENGE_LABEL,
     API_KEY_PER_ZONE_LIMIT,
+    DEFAULT_DKIM_POLICY,
+    DEFAULT_DMARC_POLICY,
+    DEFAULT_MX_RECORD,
+    DEFAULT_SPF_POLICY,
     DOMAIN_PER_USER_LIMIT,
     TXT_RECORDS_PER_RRSET_LIMIT,
 )
@@ -24,6 +28,7 @@ from .pdns import (
 )
 from .utils import (
     CustomExceptionBadRequest,
+    sort_records_key,
     build_url,
 )
 from django.contrib import messages
@@ -93,7 +98,15 @@ def create_free_domain(
     pdns_create_zone(zone_name)
 
     # localhostcert.net has predefined A records locked to localhost
-    pdns_replace_rrset(zone_name, zone_name, "A", 864000, ["127.0.0.1"])
+    pdns_replace_rrset(zone_name, zone_name, "A", 86400, ["127.0.0.1"])
+    pdns_replace_rrset(zone_name, zone_name, "TXT", 86400, [DEFAULT_SPF_POLICY])
+    pdns_replace_rrset(
+        zone_name, f"_dmarc.{zone_name}", "TXT", 86400, [DEFAULT_DMARC_POLICY]
+    )
+    pdns_replace_rrset(
+        zone_name, f"*._domainkey.{zone_name}", "TXT", 86400, [DEFAULT_DKIM_POLICY]
+    )
+    pdns_replace_rrset(zone_name, zone_name, "MX", 86400, [DEFAULT_MX_RECORD])
 
     # Create domain in DB
     newZone = Zone.objects.create(
@@ -146,13 +159,18 @@ def describe_zone(
     keys = [_ for _ in zone.zoneapikey_set.all()]
 
     details = pdns_describe_domain(zone.name)
-    records = sorted(details["rrsets"], key=lambda x: x["type"])
+    records = sorted(details["rrsets"], key=sort_records_key)
 
-    txt_records = [rrset for rrset in details["rrsets"] if rrset["type"] == "TXT"]
-    if len(txt_records) == 0:
+    zone_txt_records = [
+        rrset
+        for rrset in details["rrsets"]
+        if rrset["type"] == "TXT"
+        and rrset["name"] == f"{ACME_CHALLENGE_LABEL}.{zone.name}"
+    ]
+    if len(zone_txt_records) == 0:
         can_add_records = True
-    elif len(txt_records) == 1:
-        record_count = len(txt_records[0]["records"])
+    elif len(zone_txt_records) == 1:
+        record_count = len(zone_txt_records[0]["records"])
         can_add_records = record_count < TXT_RECORDS_PER_RRSET_LIMIT
     else:
         # TODO: eventually support subdomains
