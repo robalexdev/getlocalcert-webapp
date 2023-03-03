@@ -21,15 +21,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Settings from environmental variables
 #
 
-SECRET_KEY = os.environ["LOCALCERT_DJANGO_SECRET_KEY"]
+SECRET_KEY = os.environ["LOCALCERT_WEB_DJANGO_SECRET_KEY"]
 # Key rotation, keep these for only a short time
 SECRET_KEY_FALLBACKS = []
 
-GITHUB_CLIENT_ID = os.environ["LOCALCERT_GITHUB_CLIENT_ID"]
-GITHUB_SECRET = os.environ["LOCALCERT_GITHUB_SECRET"]
+GITHUB_CLIENT_ID = os.environ["LOCALCERT_WEB_GITHUB_CLIENT_ID"]
+GITHUB_SECRET = os.environ["LOCALCERT_WEB_GITHUB_SECRET"]
 
 
-DEBUG = os.environ.get("LOCALCERT_DEBUG", "False") == "True"
+DEBUG = os.environ.get("LOCALCERT_WEB_DEBUG", "False") == "True"
 
 
 ALLOWED_HOSTS = []
@@ -106,8 +106,12 @@ WSGI_APPLICATION = "localcert.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ["LOCALCERT_WEB_DB_NAME"],
+        "USER": os.environ["POSTGRES_USER"],
+        "PASSWORD": os.environ["POSTGRES_PASSWORD"],
+        "HOST": os.environ["LOCALCERT_WEB_PGSQL_HOST"],
+        "PORT": "5432",
     }
 }
 
@@ -193,7 +197,7 @@ CSP_INCLUDE_NONCE_IN = ["script-src"]
 
 # App specific settings
 
-LOCALCERT_PDNS_SERVER_IP = "127.0.0.1"
-LOCALCERT_PDNS_API_PORT = 8081
-LOCALCERT_PDNS_API_KEY = "changeme"
-LOCALCERT_PDNS_DNS_PORT = 8053
+LOCALCERT_PDNS_SERVER_IP = os.environ["LOCALCERT_WEB_PDNS_HOST"]
+LOCALCERT_PDNS_API_PORT = os.environ["LOCALCERT_WEB_PDNS_API_PORT"]
+LOCALCERT_PDNS_API_KEY = os.environ["LOCALCERT_SHARED_PDNS_API_KEY"]
+LOCALCERT_PDNS_DNS_PORT = int(os.environ["LOCALCERT_WEB_PDNS_DNS_PORT"])

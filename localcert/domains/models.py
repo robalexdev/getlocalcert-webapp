@@ -74,7 +74,7 @@ class ZoneApiKey(models.Model):
     last_used = models.DateTimeField(default=None, null=True)
 
     def check_secret_key(self, provided_secret_key: str) -> bool:
-        return self.hash == hash_secret(provided_secret_key)
+        return self.hash.tobytes() == hash_secret(provided_secret_key)
 
     @classmethod
     def create(cls, zone: Zone):
