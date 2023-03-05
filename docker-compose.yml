@@ -34,8 +34,6 @@ services:
   web:
     build: localcert
     restart: unless-stopped
-    ports:
-      - "8000:8000"
     environment:
       - LOCALCERT_SHARED_PDNS_API_KEY
       - LOCALCERT_WEB_DB_NAME
@@ -55,6 +53,18 @@ services:
     depends_on:
       - db
       - pdns
+
+  nginx:
+    image: nginx:stable-alpine
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8000:80"
+    networks:
+      localcert-net:
+        ipv4_address: 192.168.11.4
+    depends_on:
+      - web
 
 networks:
   localcert-net:

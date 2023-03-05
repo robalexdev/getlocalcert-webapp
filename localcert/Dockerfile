@@ -9,4 +9,4 @@ RUN pip install -r requirements.txt
 
 COPY . /app/
 
-ENTRYPOINT ["/usr/local/bin/python3", "manage.py", "runserver", "0.0.0.0:8000"]
+ENTRYPOINT [ "gunicorn", "--workers=3", "--bind=0.0.0.0:80", "--env", "DJANGO_SETTINGS_MODULE=localcert.settings", "localcert.wsgi"]

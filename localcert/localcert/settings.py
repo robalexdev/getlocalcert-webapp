@@ -32,7 +32,7 @@ GITHUB_SECRET = os.environ["LOCALCERT_WEB_GITHUB_SECRET"]
 DEBUG = os.environ.get("LOCALCERT_WEB_DEBUG", "False") == "True"
 
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["console.getlocalcert.net"]
 
 
 # Application definition
