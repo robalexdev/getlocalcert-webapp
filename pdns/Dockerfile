@@ -2,7 +2,10 @@
 FROM ubuntu:22.04
 
 RUN apt update && \
-    apt install -y --no-install-recommends pdns-server pdns-backend-pgsql python3 python3-pip postgresql-client && \
+    apt install -y --no-install-recommends pdns-server pdns-backend-pgsql \
+      python3 python3-pip \
+      postgresql-client \
+      dnsutils curl wget iputils-ping && \
     rm -rf /var/lib/apt/lists/*
 
 # Use envtpl to build the pdns.conf from template (at container start)

@@ -22,39 +22,35 @@ Build everything:
     $ docker compose build
 
 
-Start everything:
+Start just the database:
 
-    $ docker compose --env-file=dev.env up
 
-You'll see lots of errors as the database is not ready.
-
+    $ docker compose --env-file=dev.env up db -d
 
 Open a shell in the database:
 
-    $ docker exec -it --env-file=dev.env mvp-db-1 /bin/bash
-    # env
-    (observe the password)
-    # psql -U ${POSTGRES_USER} -W
-    (enter password)
+    $ docker exec -it --env-file=dev.env mvp-db-1 /bin/bash -c "PGPASSWORD=\${POSTGRES_PASSWORD} psql -U \${POSTGRES_USER}"
     postgres=# CREATE DATABASE "localcert-web";
     postgres=# CREATE DATABASE "localcert-pdns";
 
-
-Open a shell to the web server:
-
-    $ docker exec -it --env-file=dev.env mvp-web-1 /bin/bash
-    # python manage.py migrate
-
-
 Create a fresh DNS server container (the normal one can't start without the tables):
 
-    $ docker run -it --env-file=dev.env --net localcert-net mvp-pdns /bin/bash
-    # psql -h db -U ${POSTGRES_USER} -d ${LOCALCERT_PDNS_DB_NAME} -a -f /usr/share/doc/pdns-backend-pgsql/schema.pgsql.sql
-    Password:
-    ...
+    $ docker run -it --env-file=dev.env --net localcert-net mvp-pdns /bin/bash -c "PGPASSWORD=\${POSTGRES_PASSWORD} psql -h db -U \${POSTGRES_USER} -d \${LOCALCERT_PDNS_DB_NAME} -a -f /usr/share/doc/pdns-backend-pgsql/schema.pgsql.sql"
 
+Bring up all the containers:
+
+    $ docker compose down
+    $ docker compose --env-file=dev.env up -d
+
+Open a shell to the web server to migrate the database:
+
+    $ docker exec -it --env-file=dev.env mvp-web-1 python manage.py migrate
 
 Restart everything and it should now run.
+
+    $ docker compose down
+    $ docker compose --env-file=dev.env up -d
+
 
 ## Django Testing
 
