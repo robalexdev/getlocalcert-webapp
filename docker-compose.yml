@@ -85,7 +85,7 @@ networks:
   localcert-net:
     name: localcert-net
     external: false
-    internal: true
+    internal: false
     ipam:
       driver: default
       config:
