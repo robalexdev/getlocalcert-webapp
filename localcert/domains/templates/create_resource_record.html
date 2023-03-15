@@ -1,7 +1,7 @@
-{% include "page_start.html" %}
+{% extends "base.html" %}
 {% load extra_filters %}
-{% include "page_head_end.html" %}
-{% include "top_of_page.html" %}
+
+{% block content %}
 
 <nav class="breadcrumb" aria-label="breadcrumbs">
   <ul>
@@ -99,5 +99,4 @@
   localhostcert.net only supports TXT records for ACME DNS-01 challenges.
 </div>
 
-{% include "bottom_of_page.html" %}
-{% include "page_end.html" %}
+{% endblock %}

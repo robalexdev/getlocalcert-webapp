@@ -1,14 +1,13 @@
-{% include "page_start.html" %}
+{% extends "base.html" %}
 {% load extra_filters %}
-{% include "page_head_end.html" %}
-{% include "top_of_page.html" %}
+
+{% block content %}
 
 <nav class="breadcrumb" aria-label="breadcrumbs">
   <ul>
     <li class="is-active"><a href="/">Domains</a></li>
   </ul>
 </nav>
-
 
 <h1 class="title is-2">My Domains</h1>
 
@@ -36,8 +35,6 @@
   {% csrf_token %}
   <input class="button is-primary" type="submit" value="Create Free Domain">
 </form>
-
 {% endif %}
 
-{% include "bottom_of_page.html" %}
-{% include "page_end.html" %}
+{% endblock %}

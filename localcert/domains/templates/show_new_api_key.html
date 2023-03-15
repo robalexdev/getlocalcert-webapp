@@ -1,7 +1,7 @@
-{% include "page_start.html" %}
+{% extends "base.html" %}
 {% load extra_filters %}
-{% include "page_head_end.html" %}
-{% include "top_of_page.html" %}
+
+{% block content %}
 
 <nav class="breadcrumb" aria-label="breadcrumbs">
   <ul>
@@ -56,5 +56,4 @@ This key has scoped access to {{ domain | strip_trailing_dot }}.
 <a class="button is-primary" href="{{ describe_zone_url }}">Continue</a>
 </p>
 
-{% include "bottom_of_page.html" %}
-{% include "page_end.html" %}
+{% endblock %}

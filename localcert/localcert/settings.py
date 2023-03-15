@@ -67,6 +67,8 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
+LOGIN_REDIRECT_URL = "/"
+
 MIDDLEWARE = [
     # Debug Toolbar
     # "debug_toolbar.middleware.DebugToolbarMiddleware",

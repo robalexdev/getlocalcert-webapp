@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block head_title %}Sign In{% endblock %}
+
+{% block content %}
+
+<h2 class="title is-2">Sign in</h2>
+
+<div class="block">
+    <form method="post" action="/accounts/github/login/">
+    {% csrf_token %}
+    <button class="button is-primary" type="submit">Sign in with GitHub</button>
+    </form>
+</div>
+
+<p class="block">
+    Please sign in with GitHub to register an account or sign into an existing account.
+</p>
+{% endblock %}

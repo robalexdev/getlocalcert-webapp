@@ -3,6 +3,7 @@ from django.urls import path
 
 urlpatterns = [
     path("", views.list_zones, name="list_zones"),
+    path("accounts/login/", views.login_page, name="login"),
     path("create-free-domain", views.create_free_domain, name="create_free_domain"),
     path("describe-zone", views.describe_zone, name="describe_zone"),
     path(

@@ -54,6 +54,11 @@ from enum import Enum
 from typing import List
 
 
+@require_GET
+def login_page(request: HttpRequest) -> HttpResponse:
+    return render(request, "login.html", {})
+
+
 @use_custom_errors
 @require_GET
 @login_required

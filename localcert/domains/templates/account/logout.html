@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="notification is-warning is-light">
+
+<p class="block">
+<strong>
+Are you sure you want to sign out?
+</strong>
+</p>
+
+<div class="block">
+
+<form method="post" action="{% url 'account_logout' %}">
+  {% csrf_token %}
+  {% if redirect_field_value %}
+  <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}"/>
+  {% endif %}
+  <div class="buttons">
+  <button class="button is-dark" type="submit">Sign Out</button>
+  <a class="button is-dark is-outlined" href="/">Cancel</a>
+  </div>
+</form>
+</div>
+</div>
+
+{% endblock %}

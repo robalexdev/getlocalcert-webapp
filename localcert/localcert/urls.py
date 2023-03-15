@@ -13,14 +13,14 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
 from django.urls import path, include
-
+from allauth.account import views as allauth_views
+from allauth.socialaccount.providers.github.views import oauth2_login, oauth2_callback
 
 urlpatterns = [
-    # Debug Toolbar
-    # path('__debug__/', include('debug_toolbar.urls')),
     path("", include("domains.urls")),
-    path("admin/", admin.site.urls),
-    path("accounts/", include("allauth.urls")),
+    # Route each allauth view manually to block some extra views we don't use
+    path("accounts/logout/", allauth_views.logout, name="account_logout"),
+    path("accounts/github/login/", oauth2_login, name="github_login"),
+    path("accounts/github/login/callback/", oauth2_callback, name="github_callback"),
 ]

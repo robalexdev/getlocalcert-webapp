@@ -1,7 +1,7 @@
-{% include "page_start.html" %}
+{% extends "base.html" %}
 {% load extra_filters %}
-{% include "page_head_end.html" %}
-{% include "top_of_page.html" %}
+
+{% block content %}
 
 <nav class="breadcrumb" aria-label="breadcrumbs">
   <ul>
@@ -126,5 +126,4 @@
 
 <i>Domain active since {{domain.created}}</i>
 
-{% include "bottom_of_page.html" %}
-{% include "page_end.html" %}
+{% endblock %}

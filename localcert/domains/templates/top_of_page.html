@@ -35,6 +35,17 @@
         </div>
       </div>
     </div>
+    {% if user.is_authenticated %}
+    <div class="navbar-end">
+      <div class="navbar-item">
+        <div class="buttons">
+          <a class="button is-light" href="/accounts/logout/">
+            Sign out
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
   </div>
   </div>
 </nav>
