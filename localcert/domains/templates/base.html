@@ -1,9 +1,118 @@
-{% include "page_start.html" %}
-{% include "page_head_end.html" %}
-{% include "top_of_page.html" %}
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    {% block extrahead %}
+    {% endblock %}
+</head>
+<body>
+
+<nav class="navbar is-link has-shadow" role="navigation" aria-label="main navigation">
+  <div class="container">
+  <div class="navbar-brand">
+    <a class="navbar-item has-text-weight-bold" href="https://console.getlocalcert.net/">
+      console.getlocalcert.net
+    </a>
+  </div>
+
+  <div id="navbarBasicExample" class="navbar-menu">
+    <div class="navbar-start">
+      <a class="navbar-item" href="https://www.getlocalcert.net/">
+        Home 
+      </a>
+
+      <a class="navbar-item" href="https://docs.getlocalcert.net/">
+        Documentation
+      </a>
+
+      <div class="navbar-item has-dropdown is-hoverable">
+        <a class="navbar-link">
+          More
+        </a>
+
+        <div class="navbar-dropdown">
+          <a class="navbar-item" href="TODO">
+            About
+          </a>
+          <a class="navbar-item" href="TODO">
+            Contact
+          </a>
+          <hr class="navbar-divider">
+          <a class="navbar-item" href="TODO">
+            Report an issue
+          </a>
+        </div>
+      </div>
+    </div>
+    {% if user.is_authenticated %}
+    <div class="navbar-end">
+      <div class="navbar-item">
+        <div class="buttons">
+          <a class="button is-light" href="/accounts/logout/">
+            Sign out
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  </div>
+</nav>
+
+<section class="section">
+  <div class="container">
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="notification">
+          {{ message }}
+          <button class="delete"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
 
 {% block content %}
 {% endblock %}
 
-{% include "bottom_of_page.html" %}
-{% include "page_end.html" %}
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <nav class="level">
+      <div class="level-item has-text-centered">
+      <a href="TODO">About</a>
+      </div>
+
+      <div class="level-item has-text-centered">
+      <a href="https://docs.getlocalcert.net/">Documentation</a>
+      </div>
+
+      <div class="level-item has-text-centered">
+      <a href="TODO">Contact</a>
+      </div>
+
+      <div class="level-item has-text-centered">
+      <a href="TODO">Report an issue</a>
+      </div>
+    </nav>
+  </div>
+</footer>
+
+<script nonce="{{request.csp_nonce}}">
+document.addEventListener('DOMContentLoaded', () => {
+  (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
+    const $notification = $delete.parentNode;
+    $delete.addEventListener('click', () => {
+      $notification.parentNode.removeChild($notification);
+    });
+  });
+});
+</script>
+
+</body>
+</html>

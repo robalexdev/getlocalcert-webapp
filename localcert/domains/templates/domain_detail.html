@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% load extra_filters %}
 
+{% block extrahead %}
+<title>getlocalcert - {{ domain.name | strip_trailing_dot }}</title>
+{% endblock %}
+
 {% block content %}
 
 <nav class="breadcrumb" aria-label="breadcrumbs">
