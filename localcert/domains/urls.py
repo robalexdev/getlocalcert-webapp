@@ -26,20 +26,21 @@ urlpatterns = [
         views.delete_zone_api_key,
         name="delete_zone_api_key",
     ),
-    # ACME DNS APIs are namespaced
+    # API paths are versioned
     path(
-        "acmedns-api/health",
+        "api/v1/health",
         views.acmedns_api_health,
         name="acmedns_api_health",
     ),
     path(
-        "acmedns-api/update",
-        views.acmedns_api_update,
-        name="acmedns_api_update",
-    ),
-    path(
-        "acmedns-api/check",
+        "api/v1/check",
         views.acmedns_api_extra_check,
         name="acmedns_api_extra_check",
+    ),
+    # ACME DNS APIs are namespaced
+    path(
+        "acmedns-api-v1/update",
+        views.acmedns_api_update,
+        name="acmedns_api_update",
     ),
 ]

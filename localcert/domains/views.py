@@ -282,6 +282,7 @@ def delete_zone_api_key(
     )
 
 
+# API to check health (TODO)
 @require_GET
 def acmedns_api_health(
     request: HttpRequest,
@@ -289,8 +290,7 @@ def acmedns_api_health(
     return JsonResponse({})
 
 
-# An extra API we've added to help check API keys
-# TODO move this out of acme-dns namespace, it's not part of that...
+# API to check API keys
 @use_custom_json_errors
 @require_GET
 @require_api_key
