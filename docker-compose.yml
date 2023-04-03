@@ -42,6 +42,7 @@ services:
     restart: unless-stopped
     environment:
       - LOCALCERT_SHARED_PDNS_API_KEY
+      - LOCALCERT_WEB_ACCOUNT_DEFAULT_HTTP_PROTOCOL
       - LOCALCERT_WEB_DB_NAME
       - LOCALCERT_WEB_DEBUG
       - LOCALCERT_WEB_DJANGO_SECRET_KEY

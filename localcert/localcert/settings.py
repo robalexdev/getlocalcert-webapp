@@ -33,6 +33,7 @@ DEBUG = os.environ.get("LOCALCERT_WEB_DEBUG", "False") == "True"
 
 
 ALLOWED_HOSTS = ["console.getlocalcert.net"]
+CSRF_TRUSTED_ORIGINS = ["https://console.getlocalcert.net"]
 
 
 # Application definition
@@ -210,3 +211,6 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+
+# Prod concerns
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = os.environ["LOCALCERT_WEB_ACCOUNT_DEFAULT_HTTP_PROTOCOL"]
