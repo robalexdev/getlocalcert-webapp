@@ -1,3 +1,5 @@
+import json
+
 from .test_utils import WithApiKey
 from .views import (
     acmedns_api_update,
@@ -95,10 +97,13 @@ class PermissionsTests(WithApiKey):
         # attacker can no longer use stolen key
         response = self.client.post(
             reverse(acmedns_api_update),
-            {
-                "subdomain": self.subdomain,
-                "txt": self._make_challenge(),
-            },
+            json.dumps(
+                {
+                    "subdomain": self.subdomain,
+                    "txt": self._make_challenge(),
+                }
+            ),
+            content_type="application/json",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )
@@ -108,10 +113,13 @@ class PermissionsTests(WithApiKey):
         badChallenge = self._make_challenge()
         response = self.client.post(
             reverse(acmedns_api_update),
-            {
-                "subdomain": self.subdomain,
-                "txt": badChallenge,
-            },
+            json.dumps(
+                {
+                    "subdomain": self.subdomain,
+                    "txt": badChallenge,
+                }
+            ),
+            content_type="application/json",
             HTTP_X_API_USER=self.wrongUserSecretKeyId,
             HTTP_X_API_KEY=self.wrongUserSecretKey,
         )
@@ -120,10 +128,13 @@ class PermissionsTests(WithApiKey):
         goodChallenge = self._make_challenge()
         response = self.client.post(
             reverse(acmedns_api_update),
-            {
-                "subdomain": self.subdomain,
-                "txt": goodChallenge,
-            },
+            json.dumps(
+                {
+                    "subdomain": self.subdomain,
+                    "txt": goodChallenge,
+                }
+            ),
+            content_type="application/json",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )

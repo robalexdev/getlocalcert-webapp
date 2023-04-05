@@ -1,4 +1,5 @@
 import dns
+import json
 
 from .test_utils import WithApiKey
 from .views import (
@@ -143,10 +144,13 @@ class TestAcmeApi(WithApiKey):
         challenge_b64 = self._make_challenge()
         response = self.client.post(
             reverse(acmedns_api_update),
-            {
-                "subdomain": "foo." + self.subdomain,
-                "txt": challenge_b64,
-            },
+            json.dumps(
+                {
+                    "subdomain": "foo." + self.subdomain,
+                    "txt": challenge_b64,
+                }
+            ),
+            content_type="application/json",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )
@@ -156,10 +160,13 @@ class TestAcmeApi(WithApiKey):
         challenge_b64 = self._make_challenge()
         response = self.client.post(
             reverse(acmedns_api_update),
-            {
-                "subdomain": str(uuid4()),
-                "txt": challenge_b64,
-            },
+            json.dumps(
+                {
+                    "subdomain": str(uuid4()),
+                    "txt": challenge_b64,
+                }
+            ),
+            content_type="application/json",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )
@@ -169,9 +176,12 @@ class TestAcmeApi(WithApiKey):
         challenge_b64 = self._make_challenge()
         response = self.client.post(
             reverse(acmedns_api_update),
-            {
-                "txt": challenge_b64,
-            },
+            json.dumps(
+                {
+                    "txt": challenge_b64,
+                }
+            ),
+            content_type="application/json",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )
@@ -181,9 +191,12 @@ class TestAcmeApi(WithApiKey):
 
         response = self.client.post(
             reverse(acmedns_api_update),
-            {
-                "subdomain": str(uuid4()),
-            },
+            json.dumps(
+                {
+                    "subdomain": str(uuid4()),
+                }
+            ),
+            content_type="application/json",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )

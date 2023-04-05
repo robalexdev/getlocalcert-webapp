@@ -1,3 +1,4 @@
+import json
 import random
 
 from .models import DomainNameHelper, Zone
@@ -186,10 +187,13 @@ class WithApiKey(WithZoneTests):
     def _acmedns_update(self, challenge_b64: str) -> HttpResponse:
         return self.client.post(
             reverse(acmedns_api_update),
-            {
-                "subdomain": self.subdomain,
-                "txt": challenge_b64,
-            },
+            json.dumps(
+                {
+                    "subdomain": self.subdomain,
+                    "txt": challenge_b64,
+                }
+            ),
+            content_type="application/json",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )

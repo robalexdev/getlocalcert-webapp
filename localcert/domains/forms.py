@@ -47,8 +47,3 @@ class DeleteRecordForm(forms.Form):
 
 class DeleteZoneApiKeyForm(forms.Form):
     secret_key_id = UuidField(label="Secret key ID")
-
-
-class AcmeDnsUpdateRecordForm(forms.Form):
-    subdomain = LabelField()
-    txt = TxtRecordValueField()

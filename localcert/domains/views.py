@@ -1,4 +1,7 @@
+import json
 import logging
+
+from .validators import validate_acme_dns01_txt_value, validate_label
 
 from .constants import (
     ACME_CHALLENGE_LABEL,
@@ -43,7 +46,6 @@ from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from domains.forms import (
-    AcmeDnsUpdateRecordForm,
     AddRecordForm,
     CreateZoneApiKeyForm,
     DeleteRecordForm,
@@ -316,16 +318,20 @@ def acmedns_api_update(
     request: HttpRequest,
     authenticated_key: ZoneApiKey,
 ) -> JsonResponse:
-    form = AcmeDnsUpdateRecordForm(request.POST)
-    if not form.is_valid():
-        raise CustomExceptionBadRequest(
-            ". ".join(
-                [k + ": " + " ".join(x for x in v) for k, v in form.errors.items()]
-            )
-        )
+    body = json.loads(request.body.decode("utf-8"))
 
-    subdomain = form.cleaned_data["subdomain"]
-    txt = form.cleaned_data["txt"]
+    try:
+        subdomain = body["subdomain"]
+        validate_label(subdomain)
+    except KeyError:
+        raise CustomExceptionBadRequest("subdomain: This field is required")
+
+    try:
+        txt = body["txt"]
+        validate_acme_dns01_txt_value(txt)
+    except KeyError:
+        raise CustomExceptionBadRequest("txt: This field is required")
+
     zone = authenticated_key.zone
 
     if zone.name != f"{subdomain}.localhostcert.net.":
