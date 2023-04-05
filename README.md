@@ -88,6 +88,29 @@ Optionally run in parallel for a speedup:
     $ python manage.py test --parallel 12
 
 
+## Additional production notes
+
+You'll want to add nameservers for each of the domain names we control
+
+    $ docker run -it --env-file=prod.env --net localcert-net getlocalcert-webapp-pdns /bin/bash
+
+    # pdnsutil create-zone corpnet.work
+    # pdnsutil add-record corpnet.work @ NS 3600 ns1.getlocalcert.net
+    # pdnsutil add-record corpnet.work @ NS 3600 ns2.getlocalcert.net
+
+    # pdnsutil create-zone localcert.net
+    # pdnsutil add-record localcert.net @ NS 3600 ns1.getlocalcert.net
+    # pdnsutil add-record localcert.net @ NS 3600 ns2.getlocalcert.net
+
+    # pdnsutil create-zone localhostcert.net
+    # pdnsutil add-record localhostcert.net @ NS 3600 ns1.getlocalcert.net
+    # pdnsutil add-record localhostcert.net @ NS 3600 ns2.getlocalcert.net
+
+
+We'll also need to add glue records to our DNS to allow lookups.
+[See here](https://www.namecheap.com/support/knowledgebase/article.aspx/768/10/how-do-i-register-personal-nameservers-for-my-domain/).
+These are added to getlocalcert.net as ns1/ns2 such that the IP address is actually stored in the root DNS servers.
+
 
 ## Important References
 
