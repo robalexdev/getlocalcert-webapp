@@ -64,3 +64,17 @@ def require_api_key(view_fn):
             raise CustomExceptionBadRequest("Unauthorized", status_code=401)
 
     return fn
+
+
+class require_hostname:
+    def __init__(self, required_hostname: str):
+        self.required_hostname = required_hostname
+
+    def __call__(self, fn):
+        def check(request: HttpRequest, *args, **kwargs):
+            actual_hostname = request.get_host()
+            if actual_hostname != self.required_hostname:
+                raise CustomExceptionBadRequest("Not Found", status_code=404)
+            return fn(request, *args, **kwargs)
+
+        return check

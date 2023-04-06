@@ -31,7 +31,10 @@ GITHUB_SECRET = os.environ["LOCALCERT_WEB_GITHUB_SECRET"]
 
 DEBUG = os.environ.get("LOCALCERT_WEB_DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ["console.getlocalcert.net"]
+ALLOWED_HOSTS = [
+    "console.getlocalcert.net",
+    "api.getlocalcert.net",
+]
 
 if DEBUG:
     ALLOWED_HOSTS.append("127.0.0.1")

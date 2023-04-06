@@ -62,7 +62,7 @@ services:
       - pdns
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.localcert-web.rule=Host(`console.getlocalcert.net`)"
+      - "traefik.http.routers.localcert-web.rule=(Host(`console.getlocalcert.net`)) || (Host(`api.getlocalcert.net`) && PathPrefix(`/api/`))"
       - "traefik.http.services.localcert-web.loadbalancer.server.port=80"
       - "traefik.docker.network=localcert-net"
 
@@ -93,3 +93,4 @@ networks:
         - subnet: 10.33.44.0/24
           ip_range: 10.33.44.0/26
           gateway: 10.33.44.254
+

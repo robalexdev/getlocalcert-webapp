@@ -15,6 +15,7 @@ from .constants import (
 )
 from .decorators import (
     require_api_key,
+    require_hostname,
     use_custom_errors,
     use_custom_json_errors,
 )
@@ -284,7 +285,11 @@ def delete_zone_api_key(
     )
 
 
-# API to check health (TODO)
+# API to check health
+#
+# TODO:
+#   - check health, such as DB conn
+#   - limit access to LB only
 @require_GET
 def acmedns_api_health(
     request: HttpRequest,
@@ -295,6 +300,7 @@ def acmedns_api_health(
 # API to check API keys
 @use_custom_json_errors
 @require_GET
+@require_hostname("api.getlocalcert.net")
 @require_api_key
 def acmedns_api_extra_check(
     request: HttpRequest,
@@ -313,6 +319,7 @@ def acmedns_api_extra_check(
 @use_custom_json_errors
 @require_POST
 @csrf_exempt
+@require_hostname("api.getlocalcert.net")
 @require_api_key
 def acmedns_api_update(
     request: HttpRequest,

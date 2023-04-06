@@ -18,6 +18,7 @@ class TestExtraApi(WithApiKey):
     def test_extra_check(self):
         response = self.client.get(
             reverse(acmedns_api_extra_check),
+            HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )
@@ -29,6 +30,7 @@ class TestExtraApi(WithApiKey):
     def test_extra_check_bad_user_id(self):
         response = self.client.get(
             reverse(acmedns_api_extra_check),
+            HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_USER=uuid4(),
             HTTP_X_API_KEY=self.secretKey,
         )
@@ -37,6 +39,7 @@ class TestExtraApi(WithApiKey):
     def test_extra_check_bad_secret(self):
         response = self.client.get(
             reverse(acmedns_api_extra_check),
+            HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey + "xxx",
         )
@@ -45,6 +48,7 @@ class TestExtraApi(WithApiKey):
     def test_missing_api_key(self):
         response = self.client.get(
             reverse(acmedns_api_extra_check),
+            HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_KEY=self.secretKey,
         )
         self.assertContains(
@@ -53,6 +57,7 @@ class TestExtraApi(WithApiKey):
 
         response = self.client.get(
             reverse(acmedns_api_extra_check),
+            HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_USER=self.secretKeyId,
         )
         self.assertContains(
@@ -140,6 +145,17 @@ class TestAcmeApi(WithApiKey):
         self.assertContains(response, challenge_two)
         self.assertContains(response, challenge_three)
 
+    def test_update_requires_api_hostname(self):
+        response = self.client.post(
+            reverse(acmedns_api_update),
+            json.dumps(
+                {}
+            ),  # <- empty body, no auth. ensure hostname error is checked first
+            content_type="application/json",
+            HTTP_HOST="console.getlocalcert.net",  # <- wrong hostname
+        )
+        self.assertContains(response, "Not Found", status_code=404)
+
     def test_update_cannot_change_subdomains(self):
         challenge_b64 = self._make_challenge()
         response = self.client.post(
@@ -151,6 +167,7 @@ class TestAcmeApi(WithApiKey):
                 }
             ),
             content_type="application/json",
+            HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )
@@ -167,6 +184,7 @@ class TestAcmeApi(WithApiKey):
                 }
             ),
             content_type="application/json",
+            HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )
@@ -182,6 +200,7 @@ class TestAcmeApi(WithApiKey):
                 }
             ),
             content_type="application/json",
+            HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )
@@ -197,6 +216,7 @@ class TestAcmeApi(WithApiKey):
                 }
             ),
             content_type="application/json",
+            HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )

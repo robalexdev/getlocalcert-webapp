@@ -104,6 +104,7 @@ class PermissionsTests(WithApiKey):
                 }
             ),
             content_type="application/json",
+            HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )
@@ -120,6 +121,7 @@ class PermissionsTests(WithApiKey):
                 }
             ),
             content_type="application/json",
+            HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_USER=self.wrongUserSecretKeyId,
             HTTP_X_API_KEY=self.wrongUserSecretKey,
         )
@@ -135,6 +137,7 @@ class PermissionsTests(WithApiKey):
                 }
             ),
             content_type="application/json",
+            HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )
