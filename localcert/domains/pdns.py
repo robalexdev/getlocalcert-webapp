@@ -85,7 +85,7 @@ def pdns_replace_rrset(
     """
     assert rr_name.endswith(".")
     assert rr_name.endswith(zone_name)
-    assert rr_type in ["TXT", "A", "MX"]
+    assert rr_type in ["TXT", "A", "MX", "NS", "SOA"]
 
     records = [
         {

@@ -15,7 +15,7 @@ allow-unsigned-notify=no
 # empty string to disable
 allow-notify-from=
 
-default-soa-content={{ LOCALCERT_PDNS_DEFAULT_SOA_CONTENT }}
+default-soa-content={{ LOCALCERT_PDNS_DEFAULT_SOA_CONTENT|replace("\"", "") }}
 
 # API
 api=yes

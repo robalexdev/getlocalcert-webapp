@@ -36,6 +36,25 @@ from uuid import uuid4
 TEN_CHARS = "1234567890"
 
 
+def simple_dns_query(rr_name: str, record_type: str):
+    dns_req = dns.message.make_query(
+        rr_name,
+        record_type,
+    )
+    dns_resp = dns.query.udp(
+        dns_req,
+        where=settings.LOCALCERT_PDNS_SERVER_IP,
+        port=settings.LOCALCERT_PDNS_DNS_PORT,
+    )
+
+    # Split
+    answers = [str(answer).split("\n") for answer in dns_resp.answer]
+    # Flatten
+    answers = [item for inner in answers for item in inner]
+    # The answer has a couple parts, get the end
+    return [str(answer).split(f" IN {record_type} ")[1] for answer in answers]
+
+
 class TestListDomains(WithUserTests):
     def setUp(self):
         super().setUp()
@@ -118,6 +137,40 @@ class TestCreateFreeDomains(WithUserTests):
         self.assertContains(
             response, "Domain limit already reached", status_code=400, html=True
         )
+
+    def test_create_free_domain_dns_entries(self):
+        self.client.force_login(self.testUser)
+
+        self.mock_domainNameHelper.return_value = str(uuid4())
+        response = self.client.post(self.target_url, follow=True)
+
+        zone = Zone.objects.filter(owner=self.testUser)
+        self.assertEqual(len(zone), 1, f"Found {len(zone)} zones, {response.content}")
+        zone = zone[0]
+
+        # Also check that we can see the record in DNS
+        answers = simple_dns_query(zone.name, "A")
+        self.assertTrue("127.0.0.1" in answers)
+
+        answers = simple_dns_query(zone.name, "NS")
+        self.assertTrue("ns1.example.com." in answers)
+        self.assertTrue("ns2.example.com." in answers)
+
+        answers = simple_dns_query(zone.name, "SOA")
+        self.assertTrue(any(["ns1.example.com. " in answer for answer in answers]))
+
+        # Can't send/recv email
+        answers = simple_dns_query(zone.name, "MX")
+        self.assertTrue("0 ." in answers)
+
+        answers = simple_dns_query(f"*._domainkey.{zone.name}", "TXT")
+        self.assertTrue('"v=DKIM1; p="' in answers)
+
+        answers = simple_dns_query(zone.name, "TXT")
+        self.assertTrue('"v=spf1 -all"' in answers)
+
+        answers = simple_dns_query(f"_dmarc.{zone.name}", "TXT")
+        self.assertTrue('"v=DMARC1;p=reject;sp=reject;adkim=s;aspf=s"' in answers)
 
     def test_logged_out(self):
         self.assert_redirects_to_login_when_logged_out_on_post()
@@ -238,17 +291,11 @@ class TestCreateResourceRecord(WithZoneTests):
         self.assertContains(response, self.record_value)
 
         # Also check that we can see the record in DNS
-        dns_req = dns.message.make_query(
-            f"{ACME_CHALLENGE_LABEL}.{self.zone.name}", "TXT"
+        answers = simple_dns_query(
+            f"{ACME_CHALLENGE_LABEL}.{self.zone.name}",
+            "TXT",
         )
-        dns_resp = dns.query.udp(
-            dns_req,
-            where=settings.LOCALCERT_PDNS_SERVER_IP,
-            port=settings.LOCALCERT_PDNS_DNS_PORT,
-        )
-        self.assertTrue(
-            any([self.record_value in str(answer) for answer in dns_resp.answer])
-        )
+        self.assertTrue(f'"{self.record_value}"' in answers)
 
     def test_unsupported_domain(self):
         self.client.force_login(self.testUser)

@@ -41,6 +41,8 @@ services:
     build: localcert
     restart: unless-stopped
     environment:
+      - LOCALCERT_PDNS_NS1
+      - LOCALCERT_PDNS_NS2
       - LOCALCERT_SHARED_PDNS_API_KEY
       - LOCALCERT_WEB_ACCOUNT_DEFAULT_HTTP_PROTOCOL
       - LOCALCERT_WEB_DB_NAME

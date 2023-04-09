@@ -2,6 +2,8 @@ import json
 import random
 
 from .models import DomainNameHelper, Zone
+from .pdns import pdns_create_zone
+from .utils import CustomExceptionServerError
 from .views import (
     acmedns_api_update,
     add_record,
@@ -41,6 +43,14 @@ class WithMockDomainNameHelper(TestCase):
     def __init__(self, a):
         super().__init__(a)
         self.free_domain_index = random.randint(1_000, 1_000_000_000)
+
+        try:
+            pdns_create_zone("localhostcert.net.")
+        except CustomExceptionServerError as e:
+            if str(e) == "Conflict":
+                pass
+            else:
+                raise e
 
     def setUp(self) -> None:
         super().setUp()

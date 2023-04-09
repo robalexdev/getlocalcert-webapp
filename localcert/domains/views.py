@@ -1,6 +1,8 @@
 import json
 import logging
 
+from django.conf import settings
+
 from .validators import validate_acme_dns01_txt_value, validate_label
 
 from .constants import (
@@ -101,7 +103,8 @@ def create_free_domain(
     if zone_count >= DOMAIN_PER_USER_LIMIT:
         raise CustomExceptionBadRequest("Domain limit already reached")
 
-    zone_name = DomainNameHelper.objects.create().get_name() + ".localhostcert.net."
+    parent_zone = "localhostcert.net."
+    zone_name = DomainNameHelper.objects.create().get_name() + "." + parent_zone
 
     pdns_create_zone(zone_name)
 
@@ -115,6 +118,40 @@ def create_free_domain(
         zone_name, f"*._domainkey.{zone_name}", "TXT", 86400, [DEFAULT_DKIM_POLICY]
     )
     pdns_replace_rrset(zone_name, zone_name, "MX", 86400, [DEFAULT_MX_RECORD])
+
+    pdns_replace_rrset(
+        zone_name,
+        zone_name,
+        "NS",
+        60,
+        [
+            settings.LOCALCERT_PDNS_NS1,
+            settings.LOCALCERT_PDNS_NS2,
+        ],
+    )
+
+    pdns_replace_rrset(
+        zone_name,
+        zone_name,
+        "SOA",
+        60,
+        [
+            settings.LOCALCERT_PDNS_NS1
+            + " soa-admin.robalexdev.com. 0 10800 3600 604800 3600",
+        ],
+    )
+
+    # Delegation from parent zone
+    pdns_replace_rrset(
+        parent_zone,
+        zone_name,
+        "NS",
+        60,
+        [
+            settings.LOCALCERT_PDNS_NS1,
+            settings.LOCALCERT_PDNS_NS2,
+        ],
+    )
 
     # Create domain in DB
     newZone = Zone.objects.create(
