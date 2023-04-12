@@ -177,6 +177,8 @@ AUTHENTICATION_BACKENDS = [
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
+AUTH_USER_MODEL = "domains.User"
+
 
 INTERNAL_IPS = [
     # Debug Toolbar

@@ -4,7 +4,12 @@ import uuid
 
 from django.db import models
 from django.conf import settings
+from django.contrib.auth.models import AbstractUser
 from hashlib import sha256
+
+
+class User(AbstractUser):
+    pass
 
 
 class Zone(models.Model):

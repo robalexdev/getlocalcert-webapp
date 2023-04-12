@@ -12,7 +12,7 @@ from .views import (
 )
 from base64 import urlsafe_b64encode
 from bs4 import BeautifulSoup as bs
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
@@ -20,6 +20,9 @@ from hashlib import sha256
 from typing import Tuple
 from unittest.mock import patch
 from uuid import uuid4
+
+
+User = get_user_model()
 
 
 def randomDns01ChallengeResponse() -> str:
