@@ -30,30 +30,18 @@ This key has scoped access to {{ domain | strip_trailing_dot }}.
     <th>
       Domain
     </th>
-    <td class="is-size-5">
-      {{ domain | strip_trailing_dot }}
-    </td>
-  </tr>
-  <tr>
+    <td class="is-size-5">{{ domain | strip_trailing_dot }}</td></tr><tr>
     <th>
       Key ID
     </th>
-    <td id="secretKeyId" class="is-size-5">
-      {{ secretKeyId }}
-    </td>
-  </tr>
-  <tr>
+    <td id="secretKeyId" class="is-size-5">{{ secretKeyId }}</td></tr><tr>
     <th>
       Secret Key
     </th>
-    <td id="secretKey" class="is-size-5">
-      {{ secretKey }}
-    </td>
-  </tr>
-</table>
+    <td id="secretKey" class="is-size-5">{{ secretKey }}</td></tr></table>
 
 <p class="block">
-  Read the <a href="TODO">docs</a> for information on using your API key pair.
+  Read the <a href="https://docs.getlocalcert.net/acme-clients/">docs</a> for information on using your API key pair.
 </p>
 
 <p class="block">
