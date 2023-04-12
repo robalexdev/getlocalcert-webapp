@@ -106,6 +106,18 @@ You'll want to add nameservers for each of the domain names we control
     # pdnsutil add-record localhostcert.net @ NS 3600 ns1.getlocalcert.net
     # pdnsutil add-record localhostcert.net @ NS 3600 ns2.getlocalcert.net
 
+Complete with MX, SPF, DKIM, DMARC:
+
+    localhostcert.net       3600    IN      SOA     ns1.getlocalcert.net soa-admin.robalexdev.com 1 10800 3600 604800 3600
+    localhostcert.net       3600    IN      NS      ns1.getlocalcert.net
+    localhostcert.net       3600    IN      NS      ns2.getlocalcert.net
+    localhostcert.net       3600    IN      MX      0 .
+    localhostcert.net       3600    IN      TXT     "v=spf1 -all"
+    _dmarc.localhostcert.net        3600    IN      TXT     "v=DMARC1;p=reject;sp=reject;adkim=s;aspf=s"
+    *._domainkey.localhostcert.net  3600    IN      TXT     "v=DKIM1; p="
+
+Check with https://mxtoolbox.com/
+
 
 We'll also need to add glue records to our DNS to allow lookups.
 [See here](https://www.namecheap.com/support/knowledgebase/article.aspx/768/10/how-do-i-register-personal-nameservers-for-my-domain/).
