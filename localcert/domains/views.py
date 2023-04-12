@@ -218,7 +218,6 @@ def describe_zone(
         record_count = len(zone_txt_records[0]["records"])
         can_add_records = record_count < TXT_RECORDS_PER_RRSET_LIMIT
     else:
-        # TODO: eventually support subdomains
         assert False, "Expected only one TXT rrset per domain"  # pragma: no cover
 
     return render(
@@ -323,10 +322,6 @@ def delete_zone_api_key(
 
 
 # API to check health
-#
-# TODO:
-#   - check health, such as DB conn
-#   - limit access to LB only
 @require_GET
 def acmedns_api_health(
     request: HttpRequest,

@@ -52,11 +52,11 @@
           <a class="button is-danger is-small is-outlined" href="{% url 'delete_record' %}?zone_name={{domain.name}}&rr_content={{record.content}}">Delete</a>
           {% else %}
             {% if rrset.type == "A" %}
-              <a title="Learn more" href="TODO DOCS localhost">
+              <a title="Learn more" href="https://docs.getlocalcert.net/records/#a-records">
             {% elif rrset.type == "SOA" %}
-              <a title="Learn more" href="TODO DOCS soa">
+              <a title="Learn more" href="https://docs.getlocalcert.net/records/#soa-records">
             {% else %}
-              <a title="Learn more" href="TODO DOCS mail">
+              <a title="Learn more" href="https://docs.getlocalcert.net/records/#email-records">
             {% endif %}
             &nbsp;
             <span title="This record cannot be modified">🔒</span>

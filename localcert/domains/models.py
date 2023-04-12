@@ -7,10 +7,6 @@ from django.conf import settings
 from hashlib import sha256
 
 
-# TODO: Add a usermodel to subclass the user
-# https://docs.djangoproject.com/en/4.1/topics/auth/customizing/#using-a-custom-user-model-when-starting-a-project
-
-
 class Zone(models.Model):
     id = models.UUIDField(
         primary_key=True,
