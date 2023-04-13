@@ -39,7 +39,7 @@ urlpatterns = [
     ),
     # ACME DNS APIs are namespaced
     path(
-        "api/acmedns/v1/update",
+        "api/v1/acme-dns-compat/update",
         views.acmedns_api_update,
         name="acmedns_api_update",
     ),
