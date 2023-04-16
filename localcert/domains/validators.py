@@ -92,14 +92,6 @@ def validate_acme_dns01_txt_value(value: str):
     return
 
 
-class LabelValidator(validators.BaseValidator):
-    def __init__(self):
-        pass
-
-    def __call__(self, value):
-        validate_label(value)
-
-
 class ZoneNameValidator(validators.BaseValidator):
     def __init__(self):
         pass

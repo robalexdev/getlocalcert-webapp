@@ -36,7 +36,8 @@ jobs:
       - name: Install python deps
         run: cd localcert && python3 -m pip install -r requirements.txt && python3 -m pip install -r requirements-dev.txt
       - name: Run Django tests
-        run: cd localcert && python3 manage.py test
+        run: cd localcert && coverage run manage.py test && coverage report -m
       - name: Dump services logs
+        if: success() || failure() # show even when tests fail
         run: docker compose logs
 
