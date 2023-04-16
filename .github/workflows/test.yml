@@ -2,6 +2,7 @@ name: Django Tests
 on: [push]
 
 jobs:
+
   django-tests:
     runs-on: ubuntu-latest
 
@@ -40,4 +41,8 @@ jobs:
       - name: Dump services logs
         if: success() || failure() # show even when tests fail
         run: docker compose logs
+      - name: Black
+        run: cd localcert && black ./ --check
+      - name: Flake8
+        run: cd localcert && flake8 --exclude=domains/migrations/ ./
 
