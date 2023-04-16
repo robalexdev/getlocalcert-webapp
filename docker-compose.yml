@@ -70,12 +70,12 @@ services:
 
   reverse-proxy:
     image: traefik:v2.9
-    command: --api.insecure=true --providers.docker --api=true --api.dashboard=true --log.level=DEBUG --accesslog=true
     ports:
       - "80:80"
       # The Web UI (enabled by --api.insecure=true)
       - "8080:8080"
     volumes:
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       localcert-net:

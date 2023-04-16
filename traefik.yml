@@ -1,0 +1,38 @@
+providers:
+  docker: {}
+
+log:
+  level: DEBUG
+
+accessLog:
+  bufferingSize: 10
+  format: json
+  fields:
+    defaultMode: keep
+    names:
+      # Use UTC
+      StartLocal: drop
+      # Use Method/Path/Protocol
+      RequestLine: drop
+      # Redundant
+      OriginStatusLine: drop
+      DownstreamStatusLine: drop
+      # Not useful
+      ClientPort: drop
+      ClientUsername: drop
+      RequestScheme: drop
+      TLSVersion: drop
+      TLSCipher: drop
+    headers:
+      defaultMode: drop
+      names:
+        # App specific headers
+        X-Api-User: keep
+        X-Api-Key: redact
+        # Standard headers
+        X-Forwarded-For: keep
+        Host: keep
+        User-Agent: keep
+        Referer: keep
+        DNT: keep
+
