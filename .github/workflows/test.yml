@@ -39,10 +39,12 @@ jobs:
       - name: Run Django tests
         run: cd localcert && coverage run manage.py test && coverage report -m
       - name: Dump services logs
-        if: success() || failure() # show even when tests fail
+        if: success() || failure()
         run: docker compose logs
       - name: Black
+        if: success() || failure()
         run: cd localcert && black ./ --check
       - name: Flake8
+        if: success() || failure()
         run: cd localcert && flake8 --exclude=domains/migrations/ ./
 
