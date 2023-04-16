@@ -1,4 +1,4 @@
-from .validators import TxtRecordValueValidator, ZoneNameValidator, LabelValidator
+from .validators import TxtRecordValueValidator, ZoneNameValidator
 from django import forms
 
 
@@ -6,12 +6,6 @@ class ZoneNameField(forms.CharField):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.validators.append(ZoneNameValidator())
-
-
-class LabelField(forms.CharField):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.validators.append(LabelValidator())
 
 
 class UuidField(forms.RegexField):

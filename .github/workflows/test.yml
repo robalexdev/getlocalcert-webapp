@@ -1,0 +1,50 @@
+name: Django Tests
+on: [push]
+
+jobs:
+
+  django-tests:
+    runs-on: ubuntu-latest
+
+    env:
+      POSTGRES_PASSWORD: insecure-pg-password
+      POSTGRES_USER: postgres
+      LOCALCERT_SHARED_PDNS_API_KEY: insecure-pdns-key
+      LOCALCERT_PDNS_DB_NAME: localcert-pdns
+      LOCALCERT_PDNS_DEFAULT_SOA_CONTENT: ns1.example.com admin.example.com 0 10800 3600 604800 3600
+      LOCALCERT_PDNS_HOST: 0.0.0.0
+      LOCALCERT_PDNS_WEBSERVER_ALLOW_FROM: 0.0.0.0/0
+      LOCALCERT_PDNS_NS1: ns1.example.com.
+      LOCALCERT_PDNS_NS2: ns2.example.com.
+      LOCALCERT_WEB_DB_NAME: localcert-web
+      LOCALCERT_WEB_DEBUG: True
+      LOCALCERT_WEB_DJANGO_SECRET_KEY: insecure-django-key
+      LOCALCERT_WEB_GITHUB_CLIENT_ID: invalid-gh-client-id
+      LOCALCERT_WEB_GITHUB_SECRET: invalid-gh-secret
+      LOCALCERT_WEB_PDNS_API_PORT: 8081
+      LOCALCERT_WEB_PDNS_DNS_PORT: 8053
+      LOCALCERT_WEB_PDNS_HOST: 127.0.0.1
+      LOCALCERT_WEB_PGSQL_HOST: 127.0.0.1
+      LOCALCERT_WEB_ACCOUNT_DEFAULT_HTTP_PROTOCOL: http
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build
+        run: docker compose -f docker-compose-test.yml build
+      - name: Start services
+        run: docker compose -f docker-compose-test.yml up -d
+      - name: Install python deps
+        run: cd localcert && python3 -m pip install -r requirements.txt && python3 -m pip install -r requirements-dev.txt
+      - name: Run Django tests
+        run: cd localcert && coverage run --omit */dist-packages/* manage.py test && coverage report -m
+      - name: Dump services logs
+        if: success() || failure()
+        run: docker compose logs
+      - name: Black
+        if: success() || failure()
+        run: cd localcert && black ./ --check
+      - name: Flake8
+        if: success() || failure()
+        run: cd localcert && flake8 --exclude=domains/migrations/ ./
+
