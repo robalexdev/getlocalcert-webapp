@@ -68,7 +68,9 @@ def login_page(request: HttpRequest) -> HttpResponse:
 @require_GET
 @login_required
 def list_zones(request: HttpRequest) -> HttpResponse:
-    zones = Zone.objects.filter(owner=request.user,).order_by(
+    zones = Zone.objects.filter(
+        owner=request.user,
+    ).order_by(
         "name",
     )
 
