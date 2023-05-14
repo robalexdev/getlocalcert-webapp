@@ -123,6 +123,20 @@ We'll also need to add glue records to our DNS to allow lookups.
 [See here](https://www.namecheap.com/support/knowledgebase/article.aspx/768/10/how-do-i-register-personal-nameservers-for-my-domain/).
 These are added to getlocalcert.net as ns1/ns2 such that the IP address is actually stored in the root DNS servers.
 
+## Deployment
+
+    $ source prod.env
+    $ git pull
+
+### With Migrations
+
+    $ docker compose --env-file=prod.env build
+    $ docker compose --env-file=prod.env down
+    $ docker compose --env-file=prod.env up -d
+    $ docker exec -it --env-file=prod.env getlocalcert-webapp-web-1 python manage.py migrate
+
+XXX this runs the service before the migration is applied, probably want to do it first
+
 
 ## Important References
 
