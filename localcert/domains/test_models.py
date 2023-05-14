@@ -1,6 +1,5 @@
 from .models import Zone
 from .test_utils import WithUserTests
-from django.test import TestCase
 from django.utils import timezone
 
 
