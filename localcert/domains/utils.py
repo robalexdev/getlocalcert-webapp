@@ -1,12 +1,15 @@
 import logging
 from typing import Dict
 
+from django.contrib.auth.models import AbstractUser
 from django.http import (
     HttpResponse,
     JsonResponse,
 )
 from django.urls import reverse
 from urllib.parse import urlencode
+
+from domains.constants import DOMAIN_PER_STAFF_LIMIT, DOMAIN_PER_USER_LIMIT
 
 
 class CustomException(Exception):
@@ -80,3 +83,9 @@ def sort_records_key(record: Dict[str, str]) -> str:
     name = record["name"]
     is_user_modifiable = rr_type == "TXT" and name.startswith("_acme-challenge.")
     return f"{0 if is_user_modifiable else 1} {rr_type} {name}"
+
+
+def domain_limit_for_user(user: AbstractUser):
+    if user.is_staff:
+        return DOMAIN_PER_STAFF_LIMIT
+    return DOMAIN_PER_USER_LIMIT

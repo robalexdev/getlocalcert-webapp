@@ -1,7 +1,8 @@
 ACME_CHALLENGE_LABEL = "_acme-challenge"
 
 # Abuse limit
-DOMAIN_PER_USER_LIMIT = 3
+DOMAIN_PER_USER_LIMIT = 5
+DOMAIN_PER_STAFF_LIMIT = 1_000
 
 # To match acme-dns (https://github.com/joohoi/acme-dns/issues/110#issuecomment-826147413)
 TXT_RECORDS_PER_RRSET_LIMIT = 2

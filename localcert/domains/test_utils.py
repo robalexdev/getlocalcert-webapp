@@ -44,6 +44,11 @@ class WithUserTests(TransactionTestCase):
 
         self.testUser = User.objects.create(username=str(uuid4()))
         self.wrongUser = User.objects.create(username=str(uuid4()))
+
+        self.staffUser = User.objects.create(username=str(uuid4()))
+        self.staffUser.is_staff = True
+        self.staffUser.save()
+
         self.request_body = None
 
     def assert_404_when_logged_in_as_wrong_user_on_get(self):

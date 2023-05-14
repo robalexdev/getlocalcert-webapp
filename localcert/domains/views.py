@@ -12,7 +12,6 @@ from .constants import (
     DEFAULT_DMARC_POLICY,
     DEFAULT_MX_RECORD,
     DEFAULT_SPF_POLICY,
-    DOMAIN_PER_USER_LIMIT,
     TXT_RECORDS_PER_RRSET_LIMIT,
 )
 from .decorators import (
@@ -33,6 +32,7 @@ from .pdns import (
 )
 from .utils import (
     CustomExceptionBadRequest,
+    domain_limit_for_user,
     sort_records_key,
     build_url,
 )
@@ -87,7 +87,7 @@ def list_zones(request: HttpRequest) -> HttpResponse:
         "list_domains.html",
         {
             "zones": zones,
-            "domain_limit": DOMAIN_PER_USER_LIMIT,
+            "domain_limit": domain_limit_for_user(request.user),
         },
     )
 
@@ -135,7 +135,7 @@ def ensure_can_create_zone(request: HttpRequest):
     zone_count = Zone.objects.filter(
         owner=request.user,
     ).count()
-    if zone_count >= DOMAIN_PER_USER_LIMIT:
+    if zone_count >= domain_limit_for_user(request.user):
         # ugly error, but user shouldn't be able to reach this page anyway
         raise CustomExceptionBadRequest("Subdomain limit already reached")
 

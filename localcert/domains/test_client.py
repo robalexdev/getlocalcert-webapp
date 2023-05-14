@@ -4,6 +4,7 @@ import dns.query
 from .constants import (
     ACME_CHALLENGE_LABEL,
     API_KEY_PER_ZONE_LIMIT,
+    DOMAIN_PER_STAFF_LIMIT,
     DOMAIN_PER_USER_LIMIT,
     TXT_RECORDS_PER_RRSET_LIMIT,
 )
@@ -18,6 +19,7 @@ from .test_utils import (
 )
 from .utils import (
     build_url,
+    domain_limit_for_user,
 )
 from .views import (
     add_record,
@@ -676,3 +678,12 @@ class TestZoneApiKey(WithZoneTests):
         self.assertContains(
             response, "secret_key_id: Enter a valid value", status_code=400
         )
+
+
+class DomainLimitTests(WithUserTests):
+    def setUp(self):
+        super().setUp()
+
+    def test_normal_user_limit(self):
+        self.assertEqual(DOMAIN_PER_USER_LIMIT, domain_limit_for_user(self.testUser))
+        self.assertEqual(DOMAIN_PER_STAFF_LIMIT, domain_limit_for_user(self.staffUser))
