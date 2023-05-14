@@ -45,7 +45,7 @@ class PermissionsTests(WithApiKey):
             {"zone_name": self.zone.name},
         )
         self.assertNotContains(response, self.zone.name, status_code=404)
-        self.assertContains(response, "Domain does not exist", status_code=404)
+        self.assertContains(response, "Subdomain does not exist", status_code=404)
 
     def test_attacker_cant_create_keys_for_user_domains(self):
         self.client.force_login(self.testUser)
@@ -61,7 +61,7 @@ class PermissionsTests(WithApiKey):
             {"zone_name": self.zone.name},
         )
         self.assertNotContains(response, "API Key Created", status_code=404)
-        self.assertContains(response, "Domain does not exist", status_code=404)
+        self.assertContains(response, "Subdomain does not exist", status_code=404)
 
     def test_attacker_cant_delete_keys_for_user_domains(self):
         self.client.force_login(self.wrongUser)
@@ -159,7 +159,7 @@ class PermissionsTests(WithApiKey):
             },
             follow=True,
         )
-        self.assertContains(response, "Domain does not exist", status_code=404)
+        self.assertContains(response, "Subdomain does not exist", status_code=404)
 
         self.client.force_login(self.testUser)
         response = self.client.post(
@@ -170,7 +170,7 @@ class PermissionsTests(WithApiKey):
             },
             follow=True,
         )
-        self.assertNotContains(response, "Domain does not exist")
+        self.assertNotContains(response, "Subdomain does not exist")
 
     def test_attacker_cannot_add_records_for_user(self):
         badRecord = self._make_challenge()
@@ -184,7 +184,7 @@ class PermissionsTests(WithApiKey):
             follow=True,
         )
         self.assertNotContains(response, "Record added", status_code=404)
-        self.assertContains(response, "Domain does not exist", status_code=404)
+        self.assertContains(response, "Subdomain does not exist", status_code=404)
 
         goodRecord = self._make_challenge()
         self.client.force_login(self.testUser)
@@ -196,7 +196,7 @@ class PermissionsTests(WithApiKey):
             },
             follow=True,
         )
-        self.assertNotContains(response, "Domain does not exist")
+        self.assertNotContains(response, "Subdomain does not exist")
 
         # TODO: messaging
         # self.assertContains(response, "Record added")

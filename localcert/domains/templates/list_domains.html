@@ -2,18 +2,20 @@
 {% load extra_filters %}
 
 {% block extrahead %}
-<title>getlocalcert - List Domains</title>
+<title>getlocalcert - List Subdomains</title>
 {% endblock %}
 
 {% block content %}
 
 <nav class="breadcrumb" aria-label="breadcrumbs">
   <ul>
-    <li class="is-active"><a href="/">Domains</a></li>
+    <li class="is-active"><a href="/">Subdomains</a></li>
   </ul>
 </nav>
 
-<h1 class="title is-2">My Domains</h1>
+<section class="hero is-small">
+  <div class="hero-body">
+<h1 class="title is-2">My Subdomains</h1>
 
 {% if zones|length > 0 %}
   {% for zone in zones %}
@@ -33,12 +35,10 @@
 {% endif %}
 
 {% if zones|length < domain_limit %}
-<form
-    action="{% url 'create_free_domain' %}"
-    method="post">
-  {% csrf_token %}
-  <input class="button is-primary" type="submit" value="Create Free Domain">
-</form>
+ <a href="{% url 'register_subdomain' %}" class="button is-primary">Register a free subdomain</a>
 {% endif %}
+
+</div>
+</section>
 
 {% endblock %}

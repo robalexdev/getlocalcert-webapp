@@ -1,24 +1,20 @@
 import json
-import random
 
-from .models import DomainNameHelper, Zone
-from .pdns import pdns_create_zone
-from .utils import CustomExceptionServerError
+from .models import Zone
 from .views import (
     acmedns_api_update,
     add_record,
-    create_free_domain,
+    register_subdomain,
     create_zone_api_key,
 )
 from base64 import urlsafe_b64encode
 from bs4 import BeautifulSoup as bs
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from hashlib import sha256
 from typing import Tuple
-from unittest.mock import patch
 from uuid import uuid4
 
 
@@ -42,38 +38,7 @@ class AlwaysSucceed(TestCase):
         pass
 
 
-class WithMockDomainNameHelper(TestCase):
-    def __init__(self, a):
-        super().__init__(a)
-        self.free_domain_index = random.randint(1_000, 1_000_000_000)
-
-        try:
-            pdns_create_zone("localhostcert.net.")
-        except CustomExceptionServerError as e:
-            if str(e) == "Conflict":
-                pass
-            else:
-                raise e
-
-    def setUp(self) -> None:
-        super().setUp()
-        patcher = patch.object(DomainNameHelper, "get_name", return_value="1")
-        self.mock_domainNameHelper = patcher.start()
-        self.addCleanup(patcher.stop)
-
-    def _create_free_domain(self, expected_name=None):
-        if expected_name is None:
-            self.free_domain_index += 1
-            self.mock_domainNameHelper.return_value = str(self.free_domain_index)
-        else:
-            self.mock_domainNameHelper.return_value = expected_name
-        resp = self.client.post(reverse(create_free_domain), follow=True)
-        redirect = resp.redirect_chain[0][0]
-        domain = redirect.replace("/domain/", "").replace("/", "")
-        return domain
-
-
-class WithUserTests(WithMockDomainNameHelper):
+class WithUserTests(TransactionTestCase):
     def setUp(self):
         super().setUp()
 
@@ -122,10 +87,13 @@ class WithZoneTests(WithUserTests):
     def setUp(self):
         super().setUp()
         name = str(uuid4())
-        self.mock_domainNameHelper.return_value = name
         self.client.force_login(self.testUser)
         response = self.client.post(
-            reverse(create_free_domain),
+            reverse(register_subdomain),
+            {
+                "subdomain": name,
+                "parent_zone": "localhostcert.net.",
+            },
             follow=True,
         )
         self.assertContains(response, name)
@@ -136,10 +104,13 @@ class WithZoneTests(WithUserTests):
         self.subdomain = self.zone.name.split(".")[0]
 
         badName = str(uuid4())
-        self.mock_domainNameHelper.return_value = badName
         self.client.force_login(self.wrongUser)
         response = self.client.post(
-            reverse(create_free_domain),
+            reverse(register_subdomain),
+            {
+                "subdomain": badName,
+                "parent_zone": "localhostcert.net.",
+            },
             follow=True,
         )
         self.assertContains(response, badName)
@@ -211,19 +182,3 @@ class WithApiKey(WithZoneTests):
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )
-
-
-class TestMockDomainNameHelper(WithUserTests):
-    def test_mock(self):
-        self.mock_domainNameHelper.return_value = str(uuid4())
-        a = DomainNameHelper.objects.create()
-        name = a.get_name()
-        self.assertGreater(len(name), 10, f"{name}")
-
-    def test_mock_api(self):
-        self.client.force_login(self.testUser)
-        a = self._create_free_domain()
-        b = self._create_free_domain()
-        self.assertTrue(len(a) < len(b) or a < b)
-        self.assertTrue(a.endswith(".localhostcert.net."), a)
-        self.assertTrue(b.endswith(".localhostcert.net."), b)

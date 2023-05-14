@@ -9,14 +9,17 @@
 
 <nav class="breadcrumb" aria-label="breadcrumbs">
   <ul>
-    <li><a href="/">Domains</a></li>
+    <li><a href="/">Subdomains</a></li>
     <li><a href="{% url 'describe_zone' %}?zone_name={{form.zone_name.value}}">{{ form.zone_name.value | strip_trailing_dot }}</a></li>
     <li class="is-active"><a href="#" aria-current="page">Delete Record</a></li>
   </ul>
 </nav>
 
-<div class="notification is-warning is-light">
 
+<section class="hero is-small">
+  <div class="hero-body">
+
+<div class="notification is-warning is-light">
 <h1 class="title is-3">Delete Record</h1>
 
 <p class="block">
@@ -105,5 +108,7 @@
 </form>
 
 </div>
+</div>
+</section>
 
 {% endblock %}

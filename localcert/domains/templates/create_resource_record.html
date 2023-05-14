@@ -9,13 +9,16 @@
 
 <nav class="breadcrumb" aria-label="breadcrumbs">
   <ul>
-    <li><a href="/">Domains</a></li>
+    <li><a href="/">Subdomains</a></li>
     <li><a href="{% url 'describe_zone' %}?zone_name={{form.zone_name.value}}">
         {{ form.zone_name.value | strip_trailing_dot }}
     </a></li>
     <li class="is-active"><a href="#" aria-current="page">Create Record</a></li>
   </ul>
 </nav>
+
+<section class="hero is-small">
+  <div class="hero-body">
 
 <h1 class="title is-3">Create Record</h1>
 
@@ -94,13 +97,22 @@
 </div>
 
 </form>
-
-<div class="notification is-info is-light">
-  Check the <a href="https://docs.getlocalcert.net/acme-clients/">docs</a> to configure your ACME client to automate certificate issuance and renewals.
 </div>
+</section>
 
-<div class="notification is-warning is-light">
-  localhostcert.net only supports TXT records for ACME DNS-01 challenges.
-</div>
+<section class="hero is-small">
+  <div class="hero-body">
+
+    <div class="notification is-info is-light">
+      Check the <a href="https://docs.getlocalcert.net/acme-clients/">docs</a> to configure your ACME client to automate
+      certificate issuance and renewals.
+    </div>
+
+    <div class="notification is-warning is-light">
+      {{ form.zone_name.value | parent_zone_name }} only supports registrant management of TXT records for ACME DNS-01
+      challenges.
+    </div>
+  </div>
+</section>
 
 {% endblock %}

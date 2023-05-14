@@ -1,4 +1,5 @@
 import requests
+import logging
 
 from .utils import CustomExceptionServerError
 from datetime import datetime
@@ -15,6 +16,9 @@ PDNS_HEADERS = {
 
 def pdns_create_zone(zone: str):
     assert zone.endswith(".")
+
+    logging.debug(f"[PDNS] Create {zone}")
+
     # Create zone in pdns
     resp = requests.post(
         PDNS_API_BASE_URL + "/servers/localhost/zones",
@@ -37,6 +41,8 @@ def pdns_create_zone(zone: str):
 def pdns_describe_domain(zone_name: str) -> dict:
     assert zone_name.endswith(".")
 
+    logging.debug(f"[PDNS] Describe {zone_name}")
+
     # TODO: newer pdns versions can filter by name/type
     resp = requests.get(
         f"{PDNS_API_BASE_URL}/servers/localhost/zones/{zone_name}",
@@ -54,6 +60,8 @@ def pdns_delete_rrset(zone_name: str, rr_name: str, rrtype: str):
     assert zone_name.endswith(".")
     assert rr_name.endswith(zone_name)
     assert rrtype == "TXT"
+
+    logging.debug(f"[PDNS] Delete {zone_name} {rr_name} {rrtype}")
 
     resp = requests.patch(
         f"{PDNS_API_BASE_URL}/servers/localhost/zones/{zone_name}",
@@ -86,6 +94,10 @@ def pdns_replace_rrset(
     assert rr_name.endswith(".")
     assert rr_name.endswith(zone_name)
     assert rr_type in ["TXT", "A", "MX", "NS", "SOA"]
+
+    logging.debug(
+        f"[PDNS] Replace {zone_name} {rr_name} {rr_type} {ttl} {record_contents}"
+    )
 
     records = [
         {

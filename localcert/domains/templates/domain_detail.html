@@ -9,11 +9,13 @@
 
 <nav class="breadcrumb" aria-label="breadcrumbs">
   <ul>
-    <li><a href="/">Domains</a></li>
+    <li><a href="/">Subdomains</a></li>
     <li class="is-active"><a href="#" aria-current="page">{{ domain.name | strip_trailing_dot }}</a></li>
   </ul>
 </nav>
 
+<section class="hero is-small">
+  <div class="hero-body">
 <h1 class="title is-2">{{ domain.name | strip_trailing_dot }}</h1>
 
 <div class="box">
@@ -128,6 +130,8 @@
   {% endif %}
 </div>
 
-<i>Domain active since {{domain.created}}</i>
+<i>Subdomain active since {{domain.created}}</i>
+</div>
+</section>
 
 {% endblock %}

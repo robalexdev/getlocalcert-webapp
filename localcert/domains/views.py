@@ -24,7 +24,6 @@ from .decorators import (
 from .models import (
     Zone,
     ZoneApiKey,
-    DomainNameHelper,
 )
 from .pdns import (
     pdns_create_zone,
@@ -51,6 +50,7 @@ from django.views.decorators.http import require_GET, require_POST, require_http
 from domains.forms import (
     AddRecordForm,
     CreateZoneApiKeyForm,
+    RegisterSubdomain,
     DeleteRecordForm,
     DeleteZoneApiKeyForm,
     DescribeZoneForm,
@@ -93,25 +93,65 @@ def list_zones(request: HttpRequest) -> HttpResponse:
 
 
 @use_custom_errors
-@require_POST
+@require_http_methods(["GET", "POST"])
 @login_required
-def create_free_domain(
+def register_subdomain(
     request: HttpRequest,
 ) -> HttpResponse:
+    form_status = 200
+    if request.method == "POST":
+        form = RegisterSubdomain(request.POST)
+        if not form.is_valid():
+            form_status = 400
+        else:
+            parent_zone = form.cleaned_data["parent_zone"]
+            zone_name = form.cleaned_data["zone_name"]  # synthetic field
+
+            ensure_can_create_zone(request)
+
+            logging.info(f"Creating domain {zone_name} for user {request.user.id}...")
+            set_up_pdns_for_zone(zone_name, parent_zone)
+            newZone = Zone.objects.create(
+                name=zone_name,
+                owner=request.user,
+            )
+            logging.info(f"Created domain {newZone.name} for user {request.user.id}")
+
+            messages.success(request, f"Created {newZone.name}")
+            return redirect(
+                build_url(
+                    "describe_zone",
+                    params={
+                        "zone_name": newZone.name,
+                    },
+                )
+            )
+    else:
+        form = RegisterSubdomain()
+    return render(request, "create_subdomain.html", {"form": form}, status=form_status)
+
+
+def ensure_can_create_zone(request: HttpRequest):
     zone_count = Zone.objects.filter(
         owner=request.user,
     ).count()
-
     if zone_count >= DOMAIN_PER_USER_LIMIT:
-        raise CustomExceptionBadRequest("Domain limit already reached")
+        # ugly error, but user shouldn't be able to reach this page anyway
+        raise CustomExceptionBadRequest("Subdomain limit already reached")
 
-    parent_zone = "localhostcert.net."
-    zone_name = DomainNameHelper.objects.create().get_name() + "." + parent_zone
+
+def set_up_pdns_for_zone(zone_name: str, parent_zone: str):
+    assert zone_name.endswith("." + parent_zone)
 
     pdns_create_zone(zone_name)
 
     # localhostcert.net has predefined A records locked to localhost
-    pdns_replace_rrset(zone_name, zone_name, "A", 86400, ["127.0.0.1"])
+    if parent_zone == "localhostcert.net.":
+        pdns_replace_rrset(zone_name, zone_name, "A", 86400, ["127.0.0.1"])
+    else:
+        # Others don't have default A records
+        assert parent_zone == "localcert.net."
+
     pdns_replace_rrset(zone_name, zone_name, "TXT", 86400, [DEFAULT_SPF_POLICY])
     pdns_replace_rrset(
         zone_name, f"_dmarc.{zone_name}", "TXT", 86400, [DEFAULT_DMARC_POLICY]
@@ -155,24 +195,6 @@ def create_free_domain(
         ],
     )
 
-    # Create domain in DB
-    newZone = Zone.objects.create(
-        name=zone_name,
-        owner=request.user,
-    )
-
-    logging.info(f"Created domain {newZone.name} for user {request.user.id}")
-
-    messages.success(request, f"Created {newZone.name}")
-    return redirect(
-        build_url(
-            "describe_zone",
-            params={
-                "zone_name": newZone.name,
-            },
-        )
-    )
-
 
 @use_custom_errors
 @require_GET
@@ -199,7 +221,7 @@ def describe_zone(
     )
     if not zone:
         raise CustomExceptionBadRequest(
-            "Domain does not exist, or you are not the owner",
+            "Subdomain does not exist, or you are not the owner",
             status_code=404,
         )
 
@@ -263,7 +285,7 @@ def create_zone_api_key(
     )
     if not zone:
         raise CustomExceptionBadRequest(
-            "Domain does not exist, or you are not the owner",
+            "Subdomain does not exist, or you are not the owner",
             status_code=404,
         )
     if zone.zoneapikey__count >= API_KEY_PER_ZONE_LIMIT:
@@ -328,7 +350,7 @@ def delete_zone_api_key(
 def acmedns_api_health(
     request: HttpRequest,
 ) -> JsonResponse:
-    return JsonResponse({})
+    return JsonResponse({"healthy": True})
 
 
 # API to check API keys
@@ -363,7 +385,7 @@ def acmedns_api_update(
 
     try:
         subdomain = body["subdomain"]
-        validate_label(subdomain)
+        validate_label(ban_words=False, label=subdomain)
     except KeyError:
         raise CustomExceptionBadRequest("subdomain: This field is required")
 
@@ -399,47 +421,49 @@ def acmedns_api_update(
 def delete_record(
     request: HttpRequest,
 ) -> HttpResponse:
+    form_status = 200
     if request.method == "POST":
         form = DeleteRecordForm(request.POST)
         if not form.is_valid():
-            return render(
-                request, "delete_resource_record.html", {"form": form}, status=400
-            )
-        zone_name: str = form.cleaned_data["zone_name"]
-        rr_content: str = form.cleaned_data["rr_content"]
+            form_status = 400
+        else:
+            zone_name: str = form.cleaned_data["zone_name"]
+            rr_content: str = form.cleaned_data["rr_content"]
 
-        zone = Zone.objects.filter(
-            name=zone_name,
-            owner=request.user,
-        ).first()
-        if not zone:
-            raise CustomExceptionBadRequest(
-                "Domain does not exist, or you are not the owner",
-                status_code=404,
+            zone = Zone.objects.filter(
+                name=zone_name,
+                owner=request.user,
+            ).first()
+            if not zone:
+                raise CustomExceptionBadRequest(
+                    "Subdomain does not exist, or you are not the owner",
+                    status_code=404,
+                )
+
+            rr_name = f"{ACME_CHALLENGE_LABEL}.{zone.name}"
+            update_txt_record_helper(
+                request=request,
+                zone_name=zone.name,
+                rr_name=rr_name,
+                edit_action=EditActionEnum.REMOVE,
+                rr_content=rr_content,
+                is_web_request=True,
             )
 
-        rr_name = f"{ACME_CHALLENGE_LABEL}.{zone.name}"
-        update_txt_record_helper(
-            request=request,
-            zone_name=zone.name,
-            rr_name=rr_name,
-            edit_action=EditActionEnum.REMOVE,
-            rr_content=rr_content,
-            is_web_request=True,
+            return redirect(
+                build_url(
+                    "describe_zone",
+                    params={"zone_name": zone.name},
+                )
+            )
+    else:
+        assert request.method == "GET"
+        form = DeleteRecordForm(
+            initial=request.GET,
         )
-
-        return redirect(
-            build_url(
-                "describe_zone",
-                params={"zone_name": zone.name},
-            )
-        )
-
-    assert request.method == "GET"
-    form = DeleteRecordForm(
-        initial=request.GET,
+    return render(
+        request, "delete_resource_record.html", {"form": form}, status=form_status
     )
-    return render(request, "delete_resource_record.html", {"form": form})
 
 
 @use_custom_errors
@@ -448,48 +472,48 @@ def delete_record(
 def add_record(
     request: HttpRequest,
 ) -> HttpResponse:
+    form_status = 400
     if request.method == "POST":
         form = AddRecordForm(request.POST)
-        if not form.is_valid():
-            return render(
-                request, "create_resource_record.html", {"form": form}, status=400
+        if form.is_valid():
+            zone_name: str = form.cleaned_data["zone_name"]
+            rr_content: str = form.cleaned_data["rr_content"]
+
+            zone = Zone.objects.filter(
+                name=zone_name,
+                owner=request.user,
+            ).first()
+            if not zone:
+                raise CustomExceptionBadRequest(
+                    "Subdomain does not exist, or you are not the owner",
+                    status_code=404,
+                )
+
+            rr_name = f"{ACME_CHALLENGE_LABEL}.{zone.name}"
+            update_txt_record_helper(
+                request=request,
+                zone_name=zone.name,
+                rr_name=rr_name,
+                edit_action=EditActionEnum.ADD,
+                rr_content=rr_content,
+                is_web_request=True,
             )
 
-        zone_name: str = form.cleaned_data["zone_name"]
-        rr_content: str = form.cleaned_data["rr_content"]
-
-        zone = Zone.objects.filter(
-            name=zone_name,
-            owner=request.user,
-        ).first()
-        if not zone:
-            raise CustomExceptionBadRequest(
-                "Domain does not exist, or you are not the owner",
-                status_code=404,
+            return redirect(
+                build_url(
+                    "describe_zone",
+                    params={"zone_name": zone.name},
+                )
             )
-
-        rr_name = f"{ACME_CHALLENGE_LABEL}.{zone.name}"
-        update_txt_record_helper(
-            request=request,
-            zone_name=zone.name,
-            rr_name=rr_name,
-            edit_action=EditActionEnum.ADD,
-            rr_content=rr_content,
-            is_web_request=True,
+    else:
+        assert request.method == "GET"
+        form = AddRecordForm(
+            initial=request.GET,
         )
-
-        return redirect(
-            build_url(
-                "describe_zone",
-                params={"zone_name": zone.name},
-            )
-        )
-
-    assert request.method == "GET"
-    form = AddRecordForm(
-        initial=request.GET,
+        form_status = 200
+    return render(
+        request, "create_resource_record.html", {"form": form}, status=form_status
     )
-    return render(request, "create_resource_record.html", {"form": form})
 
 
 class EditActionEnum(Enum):

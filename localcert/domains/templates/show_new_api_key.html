@@ -9,11 +9,14 @@
 
 <nav class="breadcrumb" aria-label="breadcrumbs">
   <ul>
-    <li><a href="/">Domains</a></li>
+    <li><a href="/">Subdomains</a></li>
     <li><a href="{% url 'describe_zone' %}?zone_name={{domain}}">{{ domain | strip_trailing_dot }}</a></li>
     <li class="is-active"><a href="#" aria-current="page">Created API key</a></li>
   </ul>
 </nav>
+
+<section class="hero is-small">
+  <div class="hero-body">
 
 <h1 class="title is-3">API Key Created</h1>
 
@@ -28,7 +31,7 @@ This key has scoped access to {{ domain | strip_trailing_dot }}.
 <table class="table">
   <tr>
     <th>
-      Domain
+      Subdomain
     </th>
     <td class="is-size-5">{{ domain | strip_trailing_dot }}</td></tr><tr>
     <th>
@@ -47,5 +50,7 @@ This key has scoped access to {{ domain | strip_trailing_dot }}.
 <p class="block">
 <a class="button is-primary" href="{{ describe_zone_url }}">Continue</a>
 </p>
+</div>
+</section>
 
 {% endblock %}

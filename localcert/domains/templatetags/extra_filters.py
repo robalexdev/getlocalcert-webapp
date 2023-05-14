@@ -26,7 +26,7 @@ def strip_domain_name(value: str):
         value = value[0:-1]
     parts = value.split(".")
     parts.pop()  # net
-    parts.pop()  # localhostcert
+    parts.pop()  # localhostcert / localcert
     parts.pop()  # <domain>
     if len(parts) == 0:
         return "@"
@@ -58,3 +58,17 @@ def pluralize(i: int, name: str):
         return f"{i} {name}"
     else:
         return f"{i} {name}s"
+
+
+@register.filter
+def parent_zone_name(value: str):
+    if value.endswith("."):
+        value = value[:-1]
+    if value.endswith(".localcert.net"):
+        return "localcert.net"
+    elif value.endswith(".localhostcert.net"):
+        return "localhostcert.net"
+    elif value.endswith(".corpnet.work"):
+        return "corpnet.work"
+    else:
+        return "Zone"

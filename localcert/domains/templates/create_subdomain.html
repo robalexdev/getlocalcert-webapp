@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load extra_filters %}
+
+{% block extrahead %}
+<title>getlocalcert - Register Subdomain</title>
+{% endblock %}
+
+{% block content %}
+
+<nav class="breadcrumb" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="/">Subdomains</a></li>
+    <li class="is-active"><a href="#" aria-current="page">Register Subdomain</a></li>
+  </ul>
+</nav>
+
+<section class="hero is-small">
+  <div class="hero-body">
+
+    <h1 class="title is-3">Register Subdomain</h1>
+
+    <form
+        action="{% url 'register_subdomain' %}"
+        method="post">
+
+    {% csrf_token %}
+
+    {{ form.non_field_errors }}
+
+    <div class="field is-horizontal">
+      <div class="field-label is-normal">
+        <label class="label">Parent Domain</label>
+      </div>
+      <div class="field-body">
+        <div class="field">
+          <p class="control">
+            <div class="select">
+            {{ form.parent_zone }}
+            </div>
+            {% if form.parent_zone.errors %}
+            {% for error in form.parent_zone.errors %}
+              <p class="help is-size-6 is-danger">{{ error|escape }}</p>
+            {% endfor %}
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="field is-horizontal">
+      <div class="field-label is-normal">
+        <label class="label">Subdomain name</label>
+      </div>
+      <div class="field-body">
+        <div class="field">
+          <p class="control">
+            <input
+              class="input"
+              name="subdomain"
+              id="subdomain"
+              type="text"
+              maxlength="63"
+              placeholder="Pick a subdomain name">
+            {% if form.subdomain.errors %}
+            {% for error in form.subdomain.errors %}
+              <p class="help is-size-6 is-danger">{{ error|escape }}</p>
+            {% endfor %}
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="field is-horizontal">
+        <div class="field-label is-normal">
+            <label class="label"></label>
+        </div>
+      <div class="field-body">
+        <div class="buttons">
+          <input class="button is-primary" type="submit" value="Register">
+          <a href="{% url 'list_zones' %}" class="button is-secondary">Cancel</a>
+        </div>
+      </div>
+    </div>
+    </form>
+  </div>
+</section>
+
+{% endblock %}

@@ -6,8 +6,6 @@ services:
     restart: "no"
     ports:
       - 5432:5432
-    volumes:
-      - ./test-data/db:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=localcert-pdns
       - POSTGRES_PASSWORD
@@ -18,9 +16,19 @@ services:
     restart: "no"
     command: >
         bash -c "export PGPASSWORD=${POSTGRES_PASSWORD} &&
-        sleep 3 &&
+        sleep 2 &&
         psql -h db -U ${POSTGRES_USER} -d ${LOCALCERT_PDNS_DB_NAME} -w -a -f /usr/share/doc/pdns-backend-pgsql/schema.pgsql.sql &&
+        pdnsutil create-zone corpnet.work &&
+        pdnsutil add-record corpnet.work @ NS 3600 ns1.getlocalcert.net &&
+        pdnsutil add-record corpnet.work @ NS 3600 ns2.getlocalcert.net &&
+        pdnsutil create-zone localcert.net &&
+        pdnsutil add-record localcert.net @ NS 3600 ns1.getlocalcert.net &&
+        pdnsutil add-record localcert.net @ NS 3600 ns2.getlocalcert.net &&
+        pdnsutil create-zone localhostcert.net &&
+        pdnsutil add-record localhostcert.net @ NS 3600 ns1.getlocalcert.net &&
+        pdnsutil add-record localhostcert.net @ NS 3600 ns2.getlocalcert.net &&
         /usr/sbin/pdns_server"
+
     ports:
       - "8081:8081"
       - "8053:53/udp"

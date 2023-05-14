@@ -69,7 +69,7 @@ class TestAcmeApi(WithApiKey):
     def test_health(self):
         response = self.client.get(reverse(acmedns_api_health))
         self.assertEqual(200, response.status_code)
-        self.assertEqual("{}", response.content.decode("utf-8"))
+        self.assertEqual('{"healthy": true}', response.content.decode("utf-8"))
 
     def test_update_txt_record(self):
         challenge_b64 = self._make_challenge()
@@ -162,7 +162,7 @@ class TestAcmeApi(WithApiKey):
             reverse(acmedns_api_update),
             json.dumps(
                 {
-                    "subdomain": "foo." + self.subdomain,
+                    "subdomain": "foo-" + self.subdomain,
                     "txt": challenge_b64,
                 }
             ),
