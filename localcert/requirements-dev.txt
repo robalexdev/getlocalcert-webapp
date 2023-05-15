@@ -3,4 +3,4 @@ black==23.3.0
 coverage==7.2.5
 dnspython==2.3.0
 flake8==6.0.0
-
+pip-upgrader==1.4.15
