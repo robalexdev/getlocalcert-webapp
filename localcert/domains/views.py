@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 
@@ -21,6 +22,7 @@ from .decorators import (
     use_custom_json_errors,
 )
 from .models import (
+    User,
     Zone,
     ZoneApiKey,
 )
@@ -463,6 +465,90 @@ def delete_record(
         )
     return render(
         request, "delete_resource_record.html", {"form": form}, status=form_status
+    )
+
+
+@require_GET
+def show_stats(
+    request: HttpRequest,
+) -> HttpResponse:
+    now = datetime.datetime.now()
+    one_day_ago = now - datetime.timedelta(days=1)
+    thirty_days_ago = now - datetime.timedelta(days=30)
+    ninety_days_ago = now - datetime.timedelta(days=90)
+
+    stats = []
+
+    stats.append(["Users"])
+    stats.append(
+        [
+            "- created",
+            User.objects.filter(date_joined__gt=one_day_ago).count(),
+            User.objects.filter(date_joined__gt=thirty_days_ago).count(),
+            User.objects.filter(date_joined__gt=ninety_days_ago).count(),
+            User.objects.count(),
+            User.objects.order_by("date_joined").last().date_joined,
+        ]
+    )
+    stats.append(
+        [
+            "- logged in",
+            User.objects.filter(last_login__gt=one_day_ago).count(),
+            User.objects.filter(last_login__gt=thirty_days_ago).count(),
+            User.objects.filter(last_login__gt=ninety_days_ago).count(),
+            "",
+            User.objects.order_by("last_login").last().last_login,
+        ]
+    )
+
+    stats.append(["Zones"])
+    stats.append(
+        [
+            "- created",
+            Zone.objects.filter(created__gt=one_day_ago).count(),
+            Zone.objects.filter(created__gt=thirty_days_ago).count(),
+            Zone.objects.filter(created__gt=ninety_days_ago).count(),
+            Zone.objects.count(),
+            Zone.objects.order_by("created").last().created,
+        ]
+    )
+    stats.append(
+        [
+            "- updated",
+            Zone.objects.filter(updated__gt=one_day_ago).count(),
+            Zone.objects.filter(updated__gt=thirty_days_ago).count(),
+            Zone.objects.filter(updated__gt=ninety_days_ago).count(),
+            "",
+            Zone.objects.order_by("updated").last().updated,
+        ]
+    )
+
+    stats.append(["ZoneApiKey"])
+    stats.append(
+        [
+            "- created",
+            ZoneApiKey.objects.filter(created__gt=one_day_ago).count(),
+            ZoneApiKey.objects.filter(created__gt=thirty_days_ago).count(),
+            ZoneApiKey.objects.filter(created__gt=ninety_days_ago).count(),
+            ZoneApiKey.objects.count(),
+            ZoneApiKey.objects.order_by("created").last().created,
+        ]
+    )
+    stats.append(
+        [
+            "- used",
+            ZoneApiKey.objects.filter(last_used__gt=one_day_ago).count(),
+            ZoneApiKey.objects.filter(last_used__gt=thirty_days_ago).count(),
+            ZoneApiKey.objects.filter(last_used__gt=ninety_days_ago).count(),
+            "",
+            ZoneApiKey.objects.order_by("last_used").last().created,
+        ]
+    )
+
+    return render(
+        request,
+        "stats.html",
+        {"stats": stats},
     )
 
 

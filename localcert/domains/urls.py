@@ -30,6 +30,11 @@ urlpatterns = [
         views.delete_zone_api_key,
         name="delete_zone_api_key",
     ),
+    path(
+        "stats",
+        views.show_stats,
+        name="stats",
+    ),
     # API paths are versioned
     path(
         "api/v1/health",

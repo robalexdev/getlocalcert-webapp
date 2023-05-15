@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load extra_filters %}
+
+{% block extrahead %}
+<title>getlocalcert - Stats</title>
+{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb" aria-label="breadcrumbs">
+  <ul>
+    <li class="is-active"><a href="#" aria-current="page">Stats</a></li>
+  </ul>
+</nav>
+
+<section class="hero is-small">
+  <div class="hero-body">
+    <h1 class="title is-3">Stats</h1>
+
+    <table class="table is-striped is-hoverable is-fullwidth">
+    <thead>
+      <tr>
+        <th>Resource</th>
+        <th>1 day</th>
+        <th>30 days</th>
+        <th>90 days</th>
+        <th>Total</th>
+        <th>Last</th>
+      </tr>
+    </thead>
+    <tbody>
+        {% for row in stats %}
+        <tr>
+          {% if row|length == 1 %}
+            <th>{{ row.0 }}</th>
+          {% else %}
+            {% for item in row %}
+              <td>{{ item }}</td>
+            {% endfor %}
+          {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+    </table>
+  </div>
+</section>
+
+{% endblock %}
