@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import uuid
 
 from django.conf import settings
 
@@ -58,6 +59,7 @@ from domains.forms import (
     DescribeZoneForm,
 )
 from enum import Enum
+from http import HTTPStatus
 from typing import List
 
 
@@ -100,11 +102,11 @@ def list_zones(request: HttpRequest) -> HttpResponse:
 def register_subdomain(
     request: HttpRequest,
 ) -> HttpResponse:
-    form_status = 200
+    form_status = HTTPStatus.OK
     if request.method == "POST":
         form = RegisterSubdomain(request.POST)
         if not form.is_valid():
-            form_status = 400
+            form_status = HTTPStatus.BAD_REQUEST
         else:
             parent_zone = form.cleaned_data["parent_zone"]
             zone_name = form.cleaned_data["zone_name"]  # synthetic field
@@ -348,11 +350,22 @@ def delete_zone_api_key(
 
 
 # API to check health
+# Used by load balancer
 @require_GET
-def acmedns_api_health(
-    request: HttpRequest,
+def api_health(
+    _: HttpRequest,
 ) -> JsonResponse:
     return JsonResponse({"healthy": True})
+
+
+# acme-dns compat API to check health
+@require_GET
+def acmedns_api_health(
+    _: HttpRequest,
+) -> HttpResponse:
+    # ACME DNS just returns 200 OK with no content
+    # https://github.com/joohoi/acme-dns/blob/master/api.go#L111
+    return HttpResponse("")
 
 
 # API to check API keys
@@ -360,8 +373,8 @@ def acmedns_api_health(
 @require_GET
 @require_hostname("api.getlocalcert.net")
 @require_api_key
-def acmedns_api_extra_check(
-    request: HttpRequest,
+def api_check_key(
+    _: HttpRequest,
     authenticated_key: ZoneApiKey,
 ) -> JsonResponse:
     return JsonResponse(
@@ -369,6 +382,35 @@ def acmedns_api_extra_check(
             "status": "ok",
             "domain": authenticated_key.zone.name,
         }
+    )
+
+
+# API to register an anonymous zone
+@use_custom_json_errors
+@require_POST
+@csrf_exempt
+@require_hostname("api.getlocalcert.net")
+def acmedns_api_register(
+    _: HttpRequest,
+) -> JsonResponse:
+    # TODO: support allowfrom
+
+    subdomain_name = str(uuid.uuid4())
+    new_fqdn = subdomain_name + ".localcert.net."
+    new_zone = Zone.objects.create(
+        name=new_fqdn,
+        owner=None,
+    )
+    zone_key, secret = ZoneApiKey.create(new_zone)
+    return JsonResponse(
+        {
+            "username": zone_key.id,
+            "password": secret,
+            "fulldomain": new_fqdn,
+            "subdomain": subdomain_name,
+            "allowfrom": [],
+        },
+        status=HTTPStatus.CREATED,
     )
 
 
@@ -423,11 +465,11 @@ def acmedns_api_update(
 def delete_record(
     request: HttpRequest,
 ) -> HttpResponse:
-    form_status = 200
+    form_status = HTTPStatus.OK
     if request.method == "POST":
         form = DeleteRecordForm(request.POST)
         if not form.is_valid():
-            form_status = 400
+            form_status = HTTPStatus.BAD_REQUEST
         else:
             zone_name: str = form.cleaned_data["zone_name"]
             rr_content: str = form.cleaned_data["rr_content"]
@@ -558,7 +600,7 @@ def show_stats(
 def add_record(
     request: HttpRequest,
 ) -> HttpResponse:
-    form_status = 400
+    form_status = HTTPStatus.BAD_REQUEST
     if request.method == "POST":
         form = AddRecordForm(request.POST)
         if form.is_valid():
@@ -596,7 +638,7 @@ def add_record(
         form = AddRecordForm(
             initial=request.GET,
         )
-        form_status = 200
+        form_status = HTTPStatus.OK
     return render(
         request, "create_resource_record.html", {"form": form}, status=form_status
     )

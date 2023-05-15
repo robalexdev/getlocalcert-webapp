@@ -38,18 +38,28 @@ urlpatterns = [
     # API paths are versioned
     path(
         "api/v1/health",
+        views.api_health,
+        name="api_health",
+    ),
+    path(
+        "api/v1/check",
+        views.api_check_key,
+        name="api_check_key",
+    ),
+    # ACME DNS APIs are namespaced
+    path(
+        "api/v1/acme-dns-compat/health",
         views.acmedns_api_health,
         name="acmedns_api_health",
     ),
     path(
-        "api/v1/check",
-        views.acmedns_api_extra_check,
-        name="acmedns_api_extra_check",
-    ),
-    # ACME DNS APIs are namespaced
-    path(
         "api/v1/acme-dns-compat/update",
         views.acmedns_api_update,
         name="acmedns_api_update",
+    ),
+    path(
+        "api/v1/acme-dns-compat/register",
+        views.acmedns_api_register,
+        name="acmedns_api_register",
     ),
 ]

@@ -3,9 +3,11 @@ import json
 
 from .test_utils import WithApiKey
 from .views import (
-    acmedns_api_extra_check,
     acmedns_api_health,
+    acmedns_api_register,
     acmedns_api_update,
+    api_check_key,
+    api_health,
     describe_zone,
 )
 from django.conf import settings
@@ -15,9 +17,14 @@ from uuid import uuid4
 
 
 class TestExtraApi(WithApiKey):
+    def test_health(self):
+        response = self.client.get(reverse(api_health))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual('{"healthy": true}', response.content.decode("utf-8"))
+
     def test_extra_check(self):
         response = self.client.get(
-            reverse(acmedns_api_extra_check),
+            reverse(api_check_key),
             HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
@@ -29,7 +36,7 @@ class TestExtraApi(WithApiKey):
 
     def test_extra_check_bad_user_id(self):
         response = self.client.get(
-            reverse(acmedns_api_extra_check),
+            reverse(api_check_key),
             HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_USER=uuid4(),
             HTTP_X_API_KEY=self.secretKey,
@@ -38,7 +45,7 @@ class TestExtraApi(WithApiKey):
 
     def test_extra_check_bad_secret(self):
         response = self.client.get(
-            reverse(acmedns_api_extra_check),
+            reverse(api_check_key),
             HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey + "xxx",
@@ -47,7 +54,7 @@ class TestExtraApi(WithApiKey):
 
     def test_missing_api_key(self):
         response = self.client.get(
-            reverse(acmedns_api_extra_check),
+            reverse(api_check_key),
             HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_KEY=self.secretKey,
         )
@@ -56,7 +63,7 @@ class TestExtraApi(WithApiKey):
         )
 
         response = self.client.get(
-            reverse(acmedns_api_extra_check),
+            reverse(api_check_key),
             HTTP_HOST="api.getlocalcert.net",
             HTTP_X_API_USER=self.secretKeyId,
         )
@@ -69,7 +76,50 @@ class TestAcmeApi(WithApiKey):
     def test_health(self):
         response = self.client.get(reverse(acmedns_api_health))
         self.assertEqual(200, response.status_code)
-        self.assertEqual('{"healthy": true}', response.content.decode("utf-8"))
+        self.assertEqual("", response.content.decode("utf-8"))
+
+    def test_can_register_zone(self):
+        response = self.client.post(
+            reverse(acmedns_api_register),
+            HTTP_HOST="api.getlocalcert.net",
+        )
+        self.assertEqual(201, response.status_code)
+        response = response.json()
+        username = response["username"]
+        password = response["password"]
+        subdomain = response["subdomain"]
+        fulldomain = response["fulldomain"]
+        allowfrom = response["allowfrom"]
+
+        self.assertEqual(len(username), len(str(uuid4())))
+        self.assertGreaterEqual(len(password), 32)
+        self.assertTrue(fulldomain.startswith(subdomain))
+        self.assertEqual(allowfrom, [])
+
+    def test_update_anonymous_zone(self):
+        response = self.client.post(
+            reverse(acmedns_api_register),
+            HTTP_HOST="api.getlocalcert.net",
+        )
+        response = response.json()
+        username = response["username"]
+        password = response["password"]
+        subdomain = response["subdomain"]
+        challenge = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+        response = self.client.post(
+            reverse(acmedns_api_update),
+            json.dumps(
+                {
+                    "subdomain": subdomain,
+                    "txt": challenge,
+                }
+            ),
+            content_type="application/json",
+            HTTP_HOST="api.getlocalcert.net",
+            HTTP_X_API_USER=username,
+            HTTP_X_API_KEY=password,
+        )
 
     def test_update_txt_record(self):
         challenge_b64 = self._make_challenge()
