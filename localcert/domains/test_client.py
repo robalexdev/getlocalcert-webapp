@@ -12,6 +12,7 @@ from .models import (
     Zone,
 )
 from .test_utils import (
+    WithApiKey,
     WithUserTests,
     WithZoneTests,
     randomDns01ChallengeResponse,
@@ -29,6 +30,7 @@ from .views import (
     delete_zone_api_key,
     describe_zone,
     list_zones,
+    show_stats,
 )
 from django.conf import settings
 from django.urls import reverse
@@ -702,3 +704,12 @@ class DomainLimitTests(WithUserTests):
     def test_normal_user_limit(self):
         self.assertEqual(DOMAIN_PER_USER_LIMIT, domain_limit_for_user(self.testUser))
         self.assertEqual(DOMAIN_PER_STAFF_LIMIT, domain_limit_for_user(self.staffUser))
+
+
+class StatsTests(WithApiKey):
+    def setUp(self):
+        super().setUp()
+
+    def test_can_show_stats(self):
+        response = self.client.get(reverse(show_stats))
+        self.assertContains(response, "Users", html=True)
