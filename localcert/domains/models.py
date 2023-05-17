@@ -1,5 +1,6 @@
 import secrets
 import string
+from typing import Dict
 import uuid
 
 from django.db import models
@@ -84,3 +85,40 @@ def create_secret() -> str:
 
 def hash_secret(secret: str) -> str:
     return sha256(secret.encode("utf-8")).digest()
+
+
+class InstantSubdomainCreatedInfo:
+    PARENT_DOMAIN = "localhostcert.net."
+
+    def __init__(self, username, password, subdomain):
+        self.username = username
+        self.password = password
+        self.subdomain = subdomain
+
+    def get_fulldomain(self) -> str:
+        return f"{self.subdomain}.{InstantSubdomainCreatedInfo.PARENT_DOMAIN}"
+
+    def get_config(self) -> Dict[str, str]:
+        return {
+            "username": self.username,
+            "password": self.password,
+            "fulldomain": self.get_fulldomain(),
+            "subdomain": self.subdomain,
+            "allowfrom": [],
+        }
+
+
+def create_instant_subdomain() -> InstantSubdomainCreatedInfo:
+    subdomain_name = str(uuid.uuid4())
+    new_fqdn = subdomain_name + InstantSubdomainCreatedInfo.PARENT_DOMAIN
+    new_zone = Zone.objects.create(
+        name=new_fqdn,
+        owner=None,
+    )
+    zone_key, secret = ZoneApiKey.create(new_zone)
+
+    return InstantSubdomainCreatedInfo(
+        subdomain=subdomain_name,
+        username=str(zone_key.id),
+        password=secret,
+    )

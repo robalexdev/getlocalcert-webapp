@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load extra_filters %}
+
+{% block extrahead %}
+<title>getlocalcert - Instant subdomain created</title>
+{% endblock %}
+
+{% block content %}
+
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+
+    <h1 class="title is-2">Subdomain created</h1>
+
+    <p class="block">
+      Here's your new subdomain and API key pair.
+    </p>
+
+    <table class="table">
+      <tr>
+        <th>Subdomain</th>
+        <td>{{ fulldomain | strip_trailing_dot }}</td>
+      </tr>
+      <tr>
+        <th>API Key Id</th>
+        <td>{{ username }}</td>
+      </tr>
+      <tr>
+        <th>API Key Secret</th>
+        <td>{{ password }}</td>
+      </tr>
+    </table>
+
+    <p class="block">
+      You won't be able to recover a lost instant-subdomain API key, so save it somewhere safe.
+      Consider signing in with your GitHub account for additional features, including improved key management and custom subdomain names.
+    </p>
+
+    <p class="block">
+      Here's the same information as a <code>credentials.json</code> file.
+      This is a standardized format that several ACME clients support.
+    </p>
+
+    <p class="block">
+    <pre><code>{{ credentials_json }}</code></pre>
+    </p>
+
+    <h2 class="title is-4 pt-6">Next steps</h2>
+
+    <p class="block">
+      Take a look through the
+      <a href="https://docs.getlocalcert.net/acme-clients/" target="_blank" rel="noopener noreferrer">examples in our documentation</a>
+      to learn how you can use your subdomain.
+    </p>
+    </div>
+
+  </div>
+</section>
+
+{% endblock %}

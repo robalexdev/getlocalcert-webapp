@@ -74,7 +74,10 @@ class TestExtraApi(WithApiKey):
 
 class TestAcmeApi(WithApiKey):
     def test_health(self):
-        response = self.client.get(reverse(acmedns_api_health))
+        response = self.client.get(
+            reverse(acmedns_api_health),
+            HTTP_HOST="api.getlocalcert.net",
+        )
         self.assertEqual(200, response.status_code)
         self.assertEqual("", response.content.decode("utf-8"))
 

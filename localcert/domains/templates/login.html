@@ -6,22 +6,66 @@
 
 {% block content %}
 
-<section class="hero is-medium">
-  <div class="hero-body">
-    <div class="block">
-        <h2 class="title is-2">Sign in</h2>
+<div class="columns">
+  <div class="column notification p-6 m-3 is-5">
+    <h2 class="title is-3">Sign in</h2>
 
-        <p class="block">
-            Please sign in with GitHub to register an account or sign into an existing account.
-        </p>
-
-        <form method="post" action="/accounts/github/login/">
-        {% csrf_token %}
-        <button class="button is-primary" type="submit">Sign in with GitHub</button>
-        </form>
+    <div class="block is-size-5">
+    For the fullest experience, please sign in with your GitHub account.
     </div>
+
+    <div class="block">
+      <form method="post" action="/accounts/github/login/">
+      {% csrf_token %}
+      <button class="button is-primary is-large" type="submit">Sign in with GitHub</button>
+      </form>
+    </div>
+
+    <div class="block pt-4">
+      All features are supported, including:
+    </div>
+    <p class="pb-3 pl-4">
+      Web console access
+    </p>
+    <p class="pb-3 pl-4">
+      Choose your own subdomain name
+    </p>
+    <p class="pb-3 pl-4">
+      Management of API keys
+    </p>
   </div>
-</section>
 
+  <div class="column is-size-3 is-align-items-center is-flex has-text-centered is-justify-content-center has-text-weight-bold is-2">
+    – or –
+  </div>
+
+  <div class="column notification p-6 m-3 is-light is-link is-5">
+    <h2 class="title is-3">Instant subdomains</h2>
+
+    <div class="block is-size-5">
+    You can create API-only subdomains <i>without</i> registration.
+    </div>
+
+    <div class="block">
+      <form method="post" action="{% url 'create_instant_subdomain' %}">
+        {% csrf_token %}
+        <button class="button is-link is-large" type="submit">Create</button>
+      </form>
+    </div>
+
+    <div class="block pt-4">
+      Limited features are supported:
+    </div>
+    <p class="pb-3 pl-4">
+      Quickest setup for
+      <a href="https://docs.getlocalcert.net/tips/validation-domain/">ACME-challenge delegates</a>
+    </p>
+    <p class="pb-3 pl-4">
+      <a href="TODO">API access</a> is required
+    </p>
+    <p class="pb-3 pl-4">
+      Randomized UUID subdomain naming
+    </p>
+  </div>
+</div>
 {% endblock %}
-

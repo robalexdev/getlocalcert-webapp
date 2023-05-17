@@ -9,6 +9,11 @@ urlpatterns = [
         views.register_subdomain,
         name="register_subdomain",
     ),
+    path(
+        "instant-subdomain",
+        views.instant_subdomain,
+        name="create_instant_subdomain",
+    ),
     path("describe-zone", views.describe_zone, name="describe_zone"),
     path(
         "add-record",

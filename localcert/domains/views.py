@@ -26,6 +26,7 @@ from .models import (
     User,
     Zone,
     ZoneApiKey,
+    create_instant_subdomain,
 )
 from .pdns import (
     pdns_create_zone,
@@ -349,6 +350,25 @@ def delete_zone_api_key(
     )
 
 
+@require_POST
+def instant_subdomain(
+    request: HttpRequest,
+) -> HttpResponse:
+    # TODO rate limiting, expiration
+    created = create_instant_subdomain()
+    return render(
+        request,
+        "instant_subdomain.html",
+        {
+            "username": created.username,
+            "password": created.password,
+            "fulldomain": created.get_fulldomain(),
+            "credentials_json": json.dumps(created.get_config(), indent=2),
+        },
+        status=HTTPStatus.CREATED,
+    )
+
+
 # API to check health
 # Used by load balancer
 @require_GET
@@ -360,6 +380,7 @@ def api_health(
 
 # acme-dns compat API to check health
 @require_GET
+@require_hostname("api.getlocalcert.net")
 def acmedns_api_health(
     _: HttpRequest,
 ) -> HttpResponse:
@@ -395,21 +416,9 @@ def acmedns_api_register(
 ) -> JsonResponse:
     # TODO: support allowfrom
 
-    subdomain_name = str(uuid.uuid4())
-    new_fqdn = subdomain_name + ".localcert.net."
-    new_zone = Zone.objects.create(
-        name=new_fqdn,
-        owner=None,
-    )
-    zone_key, secret = ZoneApiKey.create(new_zone)
+    created = create_instant_subdomain()
     return JsonResponse(
-        {
-            "username": zone_key.id,
-            "password": secret,
-            "fulldomain": new_fqdn,
-            "subdomain": subdomain_name,
-            "allowfrom": [],
-        },
+        created.get_config(),
         status=HTTPStatus.CREATED,
     )
 
