@@ -640,6 +640,21 @@ class TestZoneApiKey(WithZoneTests):
             status_code=400,
         )
 
+    def test_cannot_create_blank_subdomain_api_key(self):
+        self.client.force_login(self.testUser)
+        response = self.client.post(
+            reverse(
+                create_zone_api_key,
+            ),
+            {"zone_name": ""},
+        )
+        self.assertNotContains(response, "API Key Created", status_code=400)
+        self.assertContains(
+            response,
+            "required",
+            status_code=400,
+        )
+
     def test_delete_key(self):
         # Create a key
         self.client.force_login(self.testUser)

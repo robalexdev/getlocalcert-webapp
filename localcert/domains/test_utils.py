@@ -1,5 +1,7 @@
 import json
 
+from .utils import CustomExceptionServerError
+
 from .models import Zone
 from .views import (
     acmedns_api_update,
@@ -187,3 +189,21 @@ class WithApiKey(WithZoneTests):
             HTTP_X_API_USER=self.secretKeyId,
             HTTP_X_API_KEY=self.secretKey,
         )
+
+
+class TestCustomExceptionServerError(TestCase):
+    def test_render(self):
+        private_message = "XXX"
+        c = CustomExceptionServerError(message=private_message, status_code=512)
+        response = c.render()
+        self.assertContains(
+            response, "Unable to process request", html=True, status_code=512
+        )
+        self.assertNotContains(response, private_message, html=True, status_code=512)
+
+    def test_render_json(self):
+        private_message = "XXX"
+        c = CustomExceptionServerError(message=private_message)
+        response = c.render_json()
+        self.assertContains(response, "Unable to process request", status_code=500)
+        self.assertNotContains(response, private_message, status_code=500)

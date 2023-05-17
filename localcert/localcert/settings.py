@@ -39,7 +39,7 @@ ALLOWED_HOSTS = [
 if DEBUG:
     ALLOWED_HOSTS.append("127.0.0.1")
 
-if not DEBUG:
+if not DEBUG:  # pragma: no cover
     CSRF_TRUSTED_ORIGINS = ["https://console.getlocalcert.net"]
 
 
@@ -217,7 +217,7 @@ LOCALCERT_PDNS_NS1 = os.environ["LOCALCERT_PDNS_NS1"]
 LOCALCERT_PDNS_NS2 = os.environ["LOCALCERT_PDNS_NS2"]
 
 # Security settings
-if not DEBUG:
+if not DEBUG:  # pragma: no cover
     SECURE_HSTS_SECONDS = 60
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True

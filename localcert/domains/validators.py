@@ -40,7 +40,8 @@ def validate_label(ban_words: bool, label: str):
 def validate_zone_name(ban_words: bool, zone_name: str):
     if len(zone_name) > 253:
         raise ValidationError("Domain name too long")
-    if len(zone_name) == 0:
+    if len(zone_name) == 0:  # pragma: no cover
+        # Usually handled by required field check
         raise ValidationError("Domain name cannot be empty")
 
     labels = zone_name[0:-1].split(".")

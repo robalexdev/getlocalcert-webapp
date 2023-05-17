@@ -31,7 +31,7 @@ def pdns_create_zone(zone: str):
     json_resp = resp.json()
 
     if "error" in json_resp.keys():
-        raise CustomExceptionServerError(json_resp["error"])
+        raise CustomExceptionServerError(json_resp["error"])  # pragma: no cover
 
     # success
     return
@@ -51,7 +51,7 @@ def pdns_describe_domain(zone_name: str) -> dict:
     if resp.status_code != requests.codes.ok:
         raise CustomExceptionServerError(
             f"Unable to describe domain, PDNS error code: {resp.status_code}"
-        )
+        )  # pragma: no cover
 
     return resp.json()
 
@@ -78,7 +78,7 @@ def pdns_delete_rrset(zone_name: str, rr_name: str, rrtype: str):
     )
 
     if resp.status_code != requests.codes.no_content:
-        raise CustomExceptionServerError(f"{resp.status_code}")
+        raise CustomExceptionServerError(f"{resp.status_code}")  # pragma: no cover
 
     # success
     return
@@ -135,7 +135,7 @@ def pdns_replace_rrset(
     if resp.status_code != requests.codes.no_content:
         raise CustomExceptionServerError(
             f"{resp.status_code}: {resp.content.decode('utf-8')}"
-        )
+        )  # pragma: no cover
 
     # success
     return
