@@ -1,7 +1,6 @@
 import datetime
 import json
 import logging
-import uuid
 
 from django.conf import settings
 
@@ -450,7 +449,10 @@ def acmedns_api_update(
 
     zone = authenticated_key.zone
 
-    if zone.name != f"{subdomain}.localhostcert.net.":
+    if (
+        zone.name != f"{subdomain}.localhostcert.net."
+        and zone.name != f"{subdomain}.localcert.net."
+    ):
         raise CustomExceptionBadRequest(
             "Subdomain does not exist or the provided key does not have access",
             status_code=404,
