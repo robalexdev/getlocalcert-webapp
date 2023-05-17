@@ -1,3 +1,5 @@
+import base64
+import binascii
 import django.utils.timezone
 import functools
 
@@ -42,15 +44,40 @@ def require_api_key(view_fn):
         KEY_FIELD_NAME = "X-Api-Key"
         USER_FIELD_NAME = "X-Api-User"
 
-        if KEY_FIELD_NAME not in request.headers:
-            raise CustomExceptionBadRequest(f"Missing required header {KEY_FIELD_NAME}")
-        if USER_FIELD_NAME not in request.headers:
-            raise CustomExceptionBadRequest(
-                f"Missing required header {USER_FIELD_NAME}"
-            )
-
-        providedKeyId = request.headers[USER_FIELD_NAME]
-        providedSecretKey = request.headers[KEY_FIELD_NAME]
+        # Prefer keys in the header, acme-dns style
+        if KEY_FIELD_NAME in request.headers:
+            if USER_FIELD_NAME in request.headers:
+                providedKeyId = request.headers[USER_FIELD_NAME]
+                providedSecretKey = request.headers[KEY_FIELD_NAME]
+            else:
+                # Require both
+                raise CustomExceptionBadRequest(
+                    f"Missing required header {USER_FIELD_NAME}"
+                )
+        else:
+            # fall back to HTTP basic auth (OpenAPI compatibility)
+            auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+            if auth_header:
+                token_type, _, credentials = auth_header.partition(" ")
+                if token_type != "Basic":
+                    raise CustomExceptionBadRequest("HTTP basic auth type unsupported")
+                try:
+                    credentials = base64.b64decode(credentials, validate=True).decode(
+                        "utf-8"
+                    )
+                except binascii.Error:
+                    raise CustomExceptionBadRequest(
+                        "HTTP basic auth base64 decode error"
+                    )
+                providedKeyId, _, providedSecretKey = credentials.partition(":")
+                if not providedKeyId or not providedSecretKey:
+                    raise CustomExceptionBadRequest(
+                        "HTTP basic auth missing credentials"
+                    )
+            else:
+                raise CustomExceptionBadRequest(
+                    f"Missing required header {KEY_FIELD_NAME} or HTTP basic auth"
+                )
 
         foundKey = ZoneApiKey.objects.filter(id=providedKeyId).first()
         if foundKey is not None and foundKey.check_secret_key(providedSecretKey):

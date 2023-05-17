@@ -1,3 +1,4 @@
+import base64
 import dns
 import json
 
@@ -17,6 +18,11 @@ from uuid import uuid4
 
 
 class TestExtraApi(WithApiKey):
+    def _build_basic_auth(self):
+        creds = f"{self.secretKeyId}:{self.secretKey}"
+        creds = creds.encode("utf-8")
+        return "Basic " + base64.b64encode(creds).decode("utf-8")
+
     def test_health(self):
         response = self.client.get(reverse(api_health))
         self.assertEqual(200, response.status_code)
@@ -33,6 +39,50 @@ class TestExtraApi(WithApiKey):
         response = response.json()
         self.assertEqual(response["status"], "ok")
         self.assertEqual(response["domain"], self.zone.name)
+
+    def test_extra_check_using_basic_auth(self):
+        response = self.client.get(
+            reverse(api_check_key),
+            HTTP_HOST="api.getlocalcert.net",
+            HTTP_AUTHORIZATION=self._build_basic_auth(),
+        )
+        self.assertEqual(200, response.status_code)
+        response = response.json()
+        self.assertEqual(response["status"], "ok")
+        self.assertEqual(response["domain"], self.zone.name)
+
+    def test_extra_check_broken_basic_auth(self):
+        response = self.client.get(
+            reverse(api_check_key),
+            HTTP_HOST="api.getlocalcert.net",
+            # Add a prefix to misformat the token
+            HTTP_AUTHORIZATION="invalid" + self._build_basic_auth(),
+        )
+        self.assertContains(
+            response, "HTTP basic auth type unsupported", status_code=400
+        )
+
+    def test_extra_check_empty_basic_auth(self):
+        response = self.client.get(
+            reverse(api_check_key),
+            HTTP_HOST="api.getlocalcert.net",
+            # Set the credentials to b64(":")
+            HTTP_AUTHORIZATION="Basic Og==",
+        )
+        self.assertContains(
+            response, "HTTP basic auth missing credentials", status_code=400
+        )
+
+    def test_extra_check_invalid_basic_auth_b64(self):
+        response = self.client.get(
+            reverse(api_check_key),
+            HTTP_HOST="api.getlocalcert.net",
+            # Set the credentials to b64(":")
+            HTTP_AUTHORIZATION="Basic ***",
+        )
+        self.assertContains(
+            response, "HTTP basic auth base64 decode error", status_code=400
+        )
 
     def test_extra_check_bad_user_id(self):
         response = self.client.get(
