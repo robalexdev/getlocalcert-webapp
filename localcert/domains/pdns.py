@@ -139,3 +139,17 @@ def pdns_replace_rrset(
 
     # success
     return
+
+
+def pdns_get_stats():
+    resp = requests.get(
+        f"{PDNS_API_BASE_URL}/servers/localhost/statistics",
+        headers=PDNS_HEADERS,
+    )
+
+    if resp.status_code != 200:  # pragma: no cover
+        logging.error(f"{resp.status_code}: {resp.content.decode('utf-8')}")
+        return {}
+
+    # success
+    return resp.json()
