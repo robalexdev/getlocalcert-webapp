@@ -35,7 +35,12 @@
 {% endif %}
 
 {% if zones|length < domain_limit %}
- <a href="{% url 'register_subdomain' %}" class="button is-primary">Register a free subdomain</a>
+  <a href="{% url 'register_subdomain' %}" class="button is-primary">Register a free subdomain</a>
+{% else %}
+  <p class="block">
+    You've reached the subdomain limit.
+    Please <a href="https://docs.getlocalcert.net/contact/">contact us</a> if you need additional subdomains.
+  </p>
 {% endif %}
 
 </div>

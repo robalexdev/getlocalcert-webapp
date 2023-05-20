@@ -3,6 +3,7 @@ import json
 import logging
 
 from django.conf import settings
+from django.urls import reverse
 
 from .validators import validate_acme_dns01_txt_value, validate_label
 
@@ -103,6 +104,15 @@ def register_subdomain(
     request: HttpRequest,
 ) -> HttpResponse:
     form_status = HTTPStatus.OK
+
+    # Make sure the user is within limits
+    zone_count = Zone.objects.filter(
+        owner=request.user,
+    ).count()
+    if zone_count >= domain_limit_for_user(request.user):
+        messages.warning(request, "Subdomain limit reached")
+        return redirect(reverse(list_zones))
+
     if request.method == "POST":
         form = RegisterSubdomain(request.POST)
         if not form.is_valid():
@@ -110,8 +120,6 @@ def register_subdomain(
         else:
             parent_zone = form.cleaned_data["parent_zone"]
             zone_name = form.cleaned_data["zone_name"]  # synthetic field
-
-            ensure_can_create_zone(request)
 
             logging.info(f"Creating domain {zone_name} for user {request.user.id}...")
             set_up_pdns_for_zone(zone_name, parent_zone)
@@ -133,15 +141,6 @@ def register_subdomain(
     else:
         form = RegisterSubdomain()
     return render(request, "create_subdomain.html", {"form": form}, status=form_status)
-
-
-def ensure_can_create_zone(request: HttpRequest):
-    zone_count = Zone.objects.filter(
-        owner=request.user,
-    ).count()
-    if zone_count >= domain_limit_for_user(request.user):
-        # ugly error, but user shouldn't be able to reach this page anyway
-        raise CustomExceptionBadRequest("Subdomain limit already reached")
 
 
 def set_up_pdns_for_zone(zone_name: str, parent_zone: str):
@@ -527,6 +526,7 @@ def show_stats(
 ) -> HttpResponse:
     now = datetime.datetime.now()
     one_day_ago = now - datetime.timedelta(days=1)
+    one_week_ago = now - datetime.timedelta(days=7)
     thirty_days_ago = now - datetime.timedelta(days=30)
     ninety_days_ago = now - datetime.timedelta(days=90)
 
@@ -537,6 +537,7 @@ def show_stats(
         [
             "- created",
             User.objects.filter(date_joined__gt=one_day_ago).count(),
+            User.objects.filter(date_joined__gt=one_week_ago).count(),
             User.objects.filter(date_joined__gt=thirty_days_ago).count(),
             User.objects.filter(date_joined__gt=ninety_days_ago).count(),
             User.objects.count(),
@@ -547,6 +548,7 @@ def show_stats(
         [
             "- logged in",
             User.objects.filter(last_login__gt=one_day_ago).count(),
+            User.objects.filter(last_login__gt=one_week_ago).count(),
             User.objects.filter(last_login__gt=thirty_days_ago).count(),
             User.objects.filter(last_login__gt=ninety_days_ago).count(),
             "",
@@ -559,6 +561,7 @@ def show_stats(
         [
             "- created",
             Zone.objects.filter(created__gt=one_day_ago).count(),
+            Zone.objects.filter(created__gt=one_week_ago).count(),
             Zone.objects.filter(created__gt=thirty_days_ago).count(),
             Zone.objects.filter(created__gt=ninety_days_ago).count(),
             Zone.objects.count(),
@@ -569,6 +572,7 @@ def show_stats(
         [
             "- updated",
             Zone.objects.filter(updated__gt=one_day_ago).count(),
+            Zone.objects.filter(updated__gt=one_week_ago).count(),
             Zone.objects.filter(updated__gt=thirty_days_ago).count(),
             Zone.objects.filter(updated__gt=ninety_days_ago).count(),
             "",
@@ -581,6 +585,7 @@ def show_stats(
         [
             "- created",
             ZoneApiKey.objects.filter(created__gt=one_day_ago).count(),
+            ZoneApiKey.objects.filter(created__gt=one_week_ago).count(),
             ZoneApiKey.objects.filter(created__gt=thirty_days_ago).count(),
             ZoneApiKey.objects.filter(created__gt=ninety_days_ago).count(),
             ZoneApiKey.objects.count(),
@@ -591,6 +596,7 @@ def show_stats(
         [
             "- used",
             ZoneApiKey.objects.filter(last_used__gt=one_day_ago).count(),
+            ZoneApiKey.objects.filter(last_used__gt=one_week_ago).count(),
             ZoneApiKey.objects.filter(last_used__gt=thirty_days_ago).count(),
             ZoneApiKey.objects.filter(last_used__gt=ninety_days_ago).count(),
             "",

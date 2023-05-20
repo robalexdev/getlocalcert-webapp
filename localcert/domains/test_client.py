@@ -260,9 +260,7 @@ class TestCreateFreeDomains(WithUserTests):
             },
             follow=True,
         )
-        self.assertContains(
-            response, "Subdomain limit already reached", status_code=400, html=True
-        )
+        self.assertContains(response, "Subdomain limit reached")
 
     def test_register_subdomain_dns_entries(self):
         self.client.force_login(self.testUser)
