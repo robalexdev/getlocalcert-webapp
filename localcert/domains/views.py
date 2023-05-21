@@ -2,9 +2,7 @@ import datetime
 import json
 import logging
 
-from datetime import timedelta
 from django.conf import settings
-from django.utils import timezone
 from django.urls import reverse
 
 from .validators import validate_acme_dns01_txt_value, validate_label

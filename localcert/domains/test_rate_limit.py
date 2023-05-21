@@ -1,4 +1,3 @@
-from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
 from uuid import uuid4
@@ -7,7 +6,6 @@ from .models import Zone
 from .constants import (
     INSTANT_DOMAINS_PER_HOUR,
     INSTANT_DOMAINS_PER_DAY_BURST,
-    INSTANT_DOMAINS_PER_WEEK,
 )
 from datetime import timedelta
 from django.utils import timezone
