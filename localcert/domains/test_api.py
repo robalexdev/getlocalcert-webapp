@@ -11,9 +11,14 @@ from .views import (
     api_health,
     describe_zone,
 )
+from .models import Zone
 from django.conf import settings
 from django.urls import reverse
-from domains.constants import ACME_CHALLENGE_LABEL, TXT_RECORDS_PER_RRSET_LIMIT
+from domains.constants import (
+    ACME_CHALLENGE_LABEL,
+    TXT_RECORDS_PER_RRSET_LIMIT,
+    INSTANT_DOMAINS_PER_DAY_BURST,
+)
 from uuid import uuid4
 
 
@@ -148,6 +153,21 @@ class TestAcmeApi(WithApiKey):
         self.assertGreaterEqual(len(password), 32)
         self.assertTrue(fulldomain.startswith(subdomain))
         self.assertEqual(allowfrom, [])
+
+    def test_register_zone_throttles(self):
+        for _ in range(INSTANT_DOMAINS_PER_DAY_BURST):
+            Zone.objects.create(name=uuid4())
+
+        response = self.client.post(
+            reverse(acmedns_api_register),
+            HTTP_HOST="api.getlocalcert.net",
+        )
+        self.assertContains(
+            response,
+            '{"error": "Throttled"}',
+            status_code=420,
+            msg_prefix=f"{response.content}",
+        )
 
     def test_update_anonymous_zone(self):
         response = self.client.post(

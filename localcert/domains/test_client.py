@@ -1,3 +1,4 @@
+from django.test import TestCase
 import dns.message
 import dns.query
 
@@ -7,6 +8,7 @@ from .constants import (
     DOMAIN_PER_STAFF_LIMIT,
     DOMAIN_PER_USER_LIMIT,
     TXT_RECORDS_PER_RRSET_LIMIT,
+    INSTANT_DOMAINS_PER_DAY_BURST,
 )
 from .models import (
     Zone,
@@ -24,6 +26,8 @@ from .utils import (
 )
 from .views import (
     add_record,
+    instant_subdomain,
+    login_page,
     register_subdomain,
     create_zone_api_key,
     delete_record,
@@ -711,3 +715,30 @@ class StatsTests(WithApiKey):
     def test_can_show_stats(self):
         response = self.client.get(reverse(show_stats))
         self.assertContains(response, "Users", html=True)
+
+
+class InstantDomainTests(TestCase):
+    def can_create_instant_domain(self):
+        response = self.client.post(reverse(instant_subdomain))
+        self.assertContains(response, "Subdomain created", status_code=201)
+
+    def instant_domains_throttle(self):
+        for _ in range(INSTANT_DOMAINS_PER_DAY_BURST):
+            Zone.objects.create(name=uuid4())
+
+        response = self.client.post(reverse(instant_subdomain), follow=True)
+        self.assertContains(
+            response,
+            "Too many instant domains have been created recently. Try again later.",
+            status_code=200,
+        )
+
+    def instant_domains_disabled(self):
+        for _ in range(INSTANT_DOMAINS_PER_DAY_BURST):
+            Zone.objects.create(name=uuid4())
+
+        response = self.client.get(reverse(login_page))
+        self.assertContains(
+            response,
+            "Due to high usage, instant domains are currently disabled.",
+        )

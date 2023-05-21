@@ -2,7 +2,9 @@ import datetime
 import json
 import logging
 
+from datetime import timedelta
 from django.conf import settings
+from django.utils import timezone
 from django.urls import reverse
 
 from .validators import validate_acme_dns01_txt_value, validate_label
@@ -34,6 +36,7 @@ from .pdns import (
     pdns_describe_domain,
     pdns_replace_rrset,
 )
+from .rate_limit import should_instant_domain_creation_throttle
 from .utils import (
     CustomExceptionBadRequest,
     domain_limit_for_user,
@@ -66,7 +69,11 @@ from typing import List
 
 @require_GET
 def login_page(request: HttpRequest) -> HttpResponse:
-    return render(request, "login.html", {})
+    return render(
+        request,
+        "login.html",
+        {"enable_instant_domains": not should_instant_domain_creation_throttle()},
+    )
 
 
 @use_custom_errors
@@ -352,6 +359,13 @@ def delete_zone_api_key(
 def instant_subdomain(
     request: HttpRequest,
 ) -> HttpResponse:
+    if should_instant_domain_creation_throttle():
+        messages.warning(
+            request,
+            "Too many instant domains have been created recently. Try again later.",
+        )
+        return redirect(login_page)
+
     # TODO rate limiting, expiration
     created = create_instant_subdomain()
     return render(
@@ -412,8 +426,13 @@ def api_check_key(
 def acmedns_api_register(
     _: HttpRequest,
 ) -> JsonResponse:
-    # TODO: support allowfrom
+    if should_instant_domain_creation_throttle():
+        return JsonResponse(
+            {"error": "Throttled"},
+            status=420,
+        )
 
+    # TODO: support allowfrom
     created = create_instant_subdomain()
     return JsonResponse(
         created.get_config(),
