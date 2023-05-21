@@ -4,6 +4,7 @@ import logging
 
 from django.conf import settings
 from django.urls import reverse
+from django.utils import timezone
 
 from .validators import validate_acme_dns01_txt_value, validate_label
 
@@ -541,7 +542,7 @@ def delete_record(
 def show_stats(
     request: HttpRequest,
 ) -> HttpResponse:
-    now = datetime.datetime.now()
+    now = timezone.now()
     one_day_ago = now - datetime.timedelta(days=1)
     one_week_ago = now - datetime.timedelta(days=7)
     thirty_days_ago = now - datetime.timedelta(days=30)
