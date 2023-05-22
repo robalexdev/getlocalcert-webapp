@@ -89,3 +89,9 @@ def domain_limit_for_user(user: AbstractUser):
     if user.is_staff:
         return DOMAIN_PER_STAFF_LIMIT
     return DOMAIN_PER_USER_LIMIT
+
+
+def remove_trailing_dot(dn: str) -> str:
+    if dn.endswith("."):
+        return dn[:-1]
+    return dn

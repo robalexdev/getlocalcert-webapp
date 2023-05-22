@@ -1,6 +1,6 @@
 import json
 
-from .utils import CustomExceptionServerError
+from .utils import CustomExceptionServerError, remove_trailing_dot
 
 from .models import Zone
 from .views import (
@@ -207,3 +207,13 @@ class TestCustomExceptionServerError(TestCase):
         response = c.render_json()
         self.assertContains(response, "Unable to process request", status_code=500)
         self.assertNotContains(response, private_message, status_code=500)
+
+
+class TestRemoveTrailingDot(TestCase):
+    def test_removal(self):
+        self.assertEquals(remove_trailing_dot("abc.def."), "abc.def")
+        # single removal
+        self.assertEquals(remove_trailing_dot("abc.def.."), "abc.def.")
+
+    def test_noop(self):
+        self.assertEquals(remove_trailing_dot("abc.def"), "abc.def")

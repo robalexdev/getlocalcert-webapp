@@ -193,6 +193,7 @@ class TestAcmeApi(WithApiKey):
             HTTP_X_API_USER=username,
             HTTP_X_API_KEY=password,
         )
+        self.assertContains(response, f'"txt": "{challenge}"')
 
     def test_update_txt_record(self):
         challenge_b64 = self._make_challenge()

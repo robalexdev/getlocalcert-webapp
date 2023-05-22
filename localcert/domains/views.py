@@ -2,19 +2,15 @@ import datetime
 import json
 import logging
 
-from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
 
+from .subdomain_utils import create_instant_subdomain, set_up_pdns_for_zone
 from .validators import validate_acme_dns01_txt_value, validate_label
 
 from .constants import (
     ACME_CHALLENGE_LABEL,
     API_KEY_PER_ZONE_LIMIT,
-    DEFAULT_DKIM_POLICY,
-    DEFAULT_DMARC_POLICY,
-    DEFAULT_MX_RECORD,
-    DEFAULT_SPF_POLICY,
     TXT_RECORDS_PER_RRSET_LIMIT,
 )
 from .decorators import (
@@ -27,10 +23,8 @@ from .models import (
     User,
     Zone,
     ZoneApiKey,
-    create_instant_subdomain,
 )
 from .pdns import (
-    pdns_create_zone,
     pdns_delete_rrset,
     pdns_describe_domain,
     pdns_replace_rrset,
@@ -147,62 +141,6 @@ def register_subdomain(
     else:
         form = RegisterSubdomain()
     return render(request, "create_subdomain.html", {"form": form}, status=form_status)
-
-
-def set_up_pdns_for_zone(zone_name: str, parent_zone: str):
-    assert zone_name.endswith("." + parent_zone)
-
-    pdns_create_zone(zone_name)
-
-    # localhostcert.net has predefined A records locked to localhost
-    if parent_zone == "localhostcert.net.":
-        pdns_replace_rrset(zone_name, zone_name, "A", 86400, ["127.0.0.1"])
-    else:
-        # Others don't have default A records
-        assert parent_zone == "localcert.net."
-
-    pdns_replace_rrset(zone_name, zone_name, "TXT", 86400, [DEFAULT_SPF_POLICY])
-    pdns_replace_rrset(
-        zone_name, f"_dmarc.{zone_name}", "TXT", 86400, [DEFAULT_DMARC_POLICY]
-    )
-    pdns_replace_rrset(
-        zone_name, f"*._domainkey.{zone_name}", "TXT", 86400, [DEFAULT_DKIM_POLICY]
-    )
-    pdns_replace_rrset(zone_name, zone_name, "MX", 86400, [DEFAULT_MX_RECORD])
-
-    pdns_replace_rrset(
-        zone_name,
-        zone_name,
-        "NS",
-        60,
-        [
-            settings.LOCALCERT_PDNS_NS1,
-            settings.LOCALCERT_PDNS_NS2,
-        ],
-    )
-
-    pdns_replace_rrset(
-        zone_name,
-        zone_name,
-        "SOA",
-        60,
-        [
-            settings.LOCALCERT_PDNS_NS1
-            + " soa-admin.robalexdev.com. 0 10800 3600 604800 3600",
-        ],
-    )
-
-    # Delegation from parent zone
-    pdns_replace_rrset(
-        parent_zone,
-        zone_name,
-        "NS",
-        60,
-        [
-            settings.LOCALCERT_PDNS_NS1,
-            settings.LOCALCERT_PDNS_NS2,
-        ],
-    )
 
 
 @use_custom_errors
@@ -365,7 +303,7 @@ def instant_subdomain(
         )
         return redirect(login_page)
 
-    # TODO rate limiting, expiration
+    # TODO expiration
     created = create_instant_subdomain()
     return render(
         request,
