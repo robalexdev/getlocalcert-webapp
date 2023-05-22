@@ -4,6 +4,7 @@ import logging
 
 from django.urls import reverse
 from django.utils import timezone
+from requests.structures import CaseInsensitiveDict
 
 from .subdomain_utils import create_instant_subdomain, set_up_pdns_for_zone
 from .validators import validate_acme_dns01_txt_value, validate_label
@@ -389,6 +390,7 @@ def acmedns_api_update(
     authenticated_key: ZoneApiKey,
 ) -> JsonResponse:
     body = json.loads(request.body.decode("utf-8"))
+    body = CaseInsensitiveDict(body)
 
     try:
         subdomain = body["subdomain"]

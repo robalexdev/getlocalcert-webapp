@@ -195,6 +195,34 @@ class TestAcmeApi(WithApiKey):
         )
         self.assertContains(response, f'"txt": "{challenge}"')
 
+    def test_update_case_insensitive(self):
+        response = self.client.post(
+            reverse(acmedns_api_register),
+            HTTP_HOST="api.getlocalcert.net",
+        )
+        response = response.json()
+        username = response["username"]
+        password = response["password"]
+        subdomain = response["subdomain"]
+        challenge = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+        response = self.client.post(
+            reverse(acmedns_api_update),
+            json.dumps(
+                # This is the format LEGO uses
+                # https://github.com/cpu/goacmedns/blob/745426768bae5f19dd10e50fa340bba52e2da6ae/client.go#L177
+                {
+                    "SubDomain": subdomain,
+                    "Txt": challenge,
+                }
+            ),
+            content_type="application/json",
+            HTTP_HOST="api.getlocalcert.net",
+            HTTP_X_API_USER=username,
+            HTTP_X_API_KEY=password,
+        )
+        self.assertContains(response, f'"txt": "{challenge}"')
+
     def test_update_txt_record(self):
         challenge_b64 = self._make_challenge()
         response = self._acmedns_update(challenge_b64)
