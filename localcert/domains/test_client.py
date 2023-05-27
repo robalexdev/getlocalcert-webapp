@@ -1,10 +1,11 @@
 from django.test import TestCase
-import dns.message
-import dns.query
 
 from .constants import (
     ACME_CHALLENGE_LABEL,
     API_KEY_PER_ZONE_LIMIT,
+    DEFAULT_DKIM_POLICY,
+    DEFAULT_DMARC_POLICY,
+    DEFAULT_SPF_POLICY,
     DOMAIN_PER_STAFF_LIMIT,
     DOMAIN_PER_USER_LIMIT,
     TXT_RECORDS_PER_RRSET_LIMIT,
@@ -26,17 +27,16 @@ from .utils import (
 )
 from .views import (
     add_record,
-    instant_subdomain,
-    login_page,
-    register_subdomain,
     create_zone_api_key,
     delete_record,
     delete_zone_api_key,
     describe_zone,
+    instant_subdomain,
     list_zones,
+    login_page,
+    register_subdomain,
     show_stats,
 )
-from django.conf import settings
 from django.urls import reverse
 from uuid import uuid4
 
@@ -44,23 +44,28 @@ from uuid import uuid4
 TEN_CHARS = "1234567890"
 
 
-def simple_dns_query(rr_name: str, record_type: str):
-    dns_req = dns.message.make_query(
-        rr_name,
-        record_type,
-    )
-    dns_resp = dns.query.udp(
-        dns_req,
-        where=settings.LOCALCERT_PDNS_SERVER_IP,
-        port=settings.LOCALCERT_PDNS_DNS_PORT,
-    )
+class TestHomePage(WithUserTests):
+    def test_home_page(self):
+        response = self.client.get(
+            reverse("home_page"),
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Easy HTTPS for your private networks", html=True)
+        self.assertContains(response, "Sign in", html=True)
+        self.assertContains(response, "Instant subdomains", html=True)
 
-    # Split
-    answers = [str(answer).split("\n") for answer in dns_resp.answer]
-    # Flatten
-    answers = [item for inner in answers for item in inner]
-    # The answer has a couple parts, get the end
-    return [str(answer).split(f" IN {record_type} ")[1] for answer in answers]
+    def test_home_page_logged_in(self):
+        self.client.force_login(self.testUser)
+        response = self.client.get(
+            reverse("home_page"),
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Easy HTTPS for your private networks", html=True)
+        self.assertNotContains(response, "Sign in", html=True)
+        self.assertContains(response, self.testUser.get_username())
+        self.assertContains(response, "Instant subdomains", html=True)
 
 
 class TestListDomains(WithUserTests):
@@ -284,28 +289,13 @@ class TestCreateFreeDomains(WithUserTests):
         zone = zone[0]
 
         # Also check that we can see the record in DNS
-        answers = simple_dns_query(zone.name, "A")
-        self.assertTrue("127.0.0.1" in answers)
-
-        answers = simple_dns_query(zone.name, "NS")
-        self.assertTrue("ns1.example.com." in answers)
-        self.assertTrue("ns2.example.com." in answers)
-
-        answers = simple_dns_query(zone.name, "SOA")
-        self.assertTrue(any(["ns1.example.com. " in answer for answer in answers]))
-
-        # Can't send/recv email
-        answers = simple_dns_query(zone.name, "MX")
-        self.assertTrue("0 ." in answers)
-
-        answers = simple_dns_query(f"*._domainkey.{zone.name}", "TXT")
-        self.assertTrue('"v=DKIM1; p="' in answers)
-
-        answers = simple_dns_query(zone.name, "TXT")
-        self.assertTrue('"v=spf1 -all"' in answers)
-
-        answers = simple_dns_query(f"_dmarc.{zone.name}", "TXT")
-        self.assertTrue('"v=DMARC1;p=reject;sp=reject;adkim=s;aspf=s"' in answers)
+        self.assertHasRecords(zone.name, "A", ["127.0.0.1"])
+        self.assertHasRecords(zone.name, "NS", ["ns1.example.com.", "ns2.example.com."])
+        self.assertHasRecords(zone.name, "SOA", ["ns1.example.com."], match_prefix=True)
+        self.assertHasRecords(zone.name, "MX", [DEFAULT_SPF_POLICY])
+        self.assertHasRecords(f"*._domainkey.{zone.name}", "TXT", [DEFAULT_DKIM_POLICY])
+        self.assertHasRecords(zone.name, "TXT", [DEFAULT_SPF_POLICY])
+        self.assertHasRecords(f"_dmarc.{zone.name}", "TXT", [DEFAULT_DMARC_POLICY])
 
     def test_logged_out(self):
         self.assert_redirects_to_login_when_logged_out_on_post()
@@ -425,11 +415,9 @@ class TestCreateResourceRecord(WithZoneTests):
         self.assertContains(response, self.record_value)
 
         # Also check that we can see the record in DNS
-        answers = simple_dns_query(
-            f"{ACME_CHALLENGE_LABEL}.{self.zone.name}",
-            "TXT",
+        self.assertHasRecords(
+            f"{ACME_CHALLENGE_LABEL}.{self.zone.name}", "TXT", [self.record_value]
         )
-        self.assertTrue(f'"{self.record_value}"' in answers)
 
     def test_unsupported_domain(self):
         self.client.force_login(self.testUser)

@@ -2,8 +2,9 @@ from . import views
 from django.urls import path
 
 urlpatterns = [
-    path("", views.list_zones, name="list_zones"),
+    path("", views.home_page, name="home_page"),
     path("accounts/login/", views.login_page, name="login"),
+    path("list-zones", views.list_zones, name="list_zones"),
     path(
         "register-subdomain",
         views.register_subdomain,

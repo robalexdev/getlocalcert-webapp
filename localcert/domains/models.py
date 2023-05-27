@@ -36,6 +36,7 @@ class Zone(models.Model):
 
     created = models.DateTimeField(default=timezone.now)
     updated = models.DateTimeField(auto_now=True)
+    is_delegate = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name

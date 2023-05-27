@@ -12,6 +12,7 @@ from .validators import validate_acme_dns01_txt_value, validate_label
 from .constants import (
     ACME_CHALLENGE_LABEL,
     API_KEY_PER_ZONE_LIMIT,
+    DEFAULT_SPF_POLICY,
     TXT_RECORDS_PER_RRSET_LIMIT,
 )
 from .decorators import (
@@ -62,11 +63,19 @@ from typing import List
 
 
 @require_GET
+def home_page(request: HttpRequest) -> HttpResponse:
+    return render(
+        request,
+        "home.html",
+        {"enable_instant_domains": not should_instant_domain_creation_throttle()},
+    )
+
+
+@require_GET
 def login_page(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "login.html",
-        {"enable_instant_domains": not should_instant_domain_creation_throttle()},
     )
 
 
@@ -305,7 +314,7 @@ def instant_subdomain(
         return redirect(login_page)
 
     # TODO expiration
-    created = create_instant_subdomain()
+    created = create_instant_subdomain(is_delegate=False)
     return render(
         request,
         "instant_subdomain.html",
@@ -371,7 +380,7 @@ def acmedns_api_register(
         )
 
     # TODO: support allowfrom
-    created = create_instant_subdomain()
+    created = create_instant_subdomain(is_delegate=True)
     return JsonResponse(
         created.get_config(),
         status=HTTPStatus.CREATED,
@@ -404,7 +413,7 @@ def acmedns_api_update(
     except KeyError:
         raise CustomExceptionBadRequest("txt: This field is required")
 
-    zone = authenticated_key.zone
+    zone: Zone = authenticated_key.zone
 
     if (
         zone.name != f"{subdomain}.localhostcert.net."
@@ -415,10 +424,18 @@ def acmedns_api_update(
             status_code=404,
         )
 
+    if zone.is_delegate:
+        # Put the challenge on the subdomain directly
+        # This is how acme-dns does it and it prevents someone from registering
+        # a cert for the delegate subdomain
+        rr_name = zone.name
+    else:
+        rr_name = f"{ACME_CHALLENGE_LABEL}.{zone.name}"
+
     update_txt_record_helper(
         request=request,
         zone_name=zone.name,
-        rr_name=f"{ACME_CHALLENGE_LABEL}.{zone.name}",
+        rr_name=rr_name,
         edit_action=EditActionEnum.ADD,
         rr_content=txt,
         is_web_request=False,
@@ -488,6 +505,37 @@ def show_stats(
     thirty_days_ago = now - datetime.timedelta(days=30)
     ninety_days_ago = now - datetime.timedelta(days=90)
 
+    last_created_user = User.objects.order_by("date_joined").last()
+    last_login_user = User.objects.order_by("last_login").last()
+    last_owned_zone_created = (
+        Zone.objects.filter(owner__isnull=False).order_by("created").last()
+    )
+    last_owned_zone_updated = (
+        Zone.objects.filter(owner__isnull=False).order_by("updated").last()
+    )
+    last_anon_zone_created = (
+        Zone.objects.filter(owner__isnull=True, is_delegate=False)
+        .order_by("created")
+        .last()
+    )
+    last_anon_zone_updated = (
+        Zone.objects.filter(owner__isnull=True, is_delegate=False)
+        .order_by("updated")
+        .last()
+    )
+    last_delegate_zone_created = (
+        Zone.objects.filter(owner__isnull=True, is_delegate=True)
+        .order_by("created")
+        .last()
+    )
+    last_delegate_zone_updated = (
+        Zone.objects.filter(owner__isnull=True, is_delegate=True)
+        .order_by("updated")
+        .last()
+    )
+    last_api_key_created = ZoneApiKey.objects.order_by("created").last()
+    last_api_key_used = ZoneApiKey.objects.order_by("last_used").last()
+
     stats = []
 
     stats.append(["Users"])
@@ -499,7 +547,7 @@ def show_stats(
             User.objects.filter(date_joined__gt=thirty_days_ago).count(),
             User.objects.filter(date_joined__gt=ninety_days_ago).count(),
             User.objects.count(),
-            User.objects.order_by("date_joined").last().date_joined,
+            "" if last_created_user is None else last_created_user.date_joined,
         ]
     )
     stats.append(
@@ -510,31 +558,123 @@ def show_stats(
             User.objects.filter(last_login__gt=thirty_days_ago).count(),
             User.objects.filter(last_login__gt=ninety_days_ago).count(),
             "",
-            User.objects.order_by("last_login").last().last_login,
+            "" if last_login_user is None else last_login_user.last_login,
         ]
     )
 
-    stats.append(["Zones"])
+    stats.append(["Zones (owned)"])
     stats.append(
         [
             "- created",
-            Zone.objects.filter(created__gt=one_day_ago).count(),
-            Zone.objects.filter(created__gt=one_week_ago).count(),
-            Zone.objects.filter(created__gt=thirty_days_ago).count(),
-            Zone.objects.filter(created__gt=ninety_days_ago).count(),
-            Zone.objects.count(),
-            Zone.objects.order_by("created").last().created,
+            Zone.objects.filter(created__gt=one_day_ago, owner__isnull=False).count(),
+            Zone.objects.filter(created__gt=one_week_ago, owner__isnull=False).count(),
+            Zone.objects.filter(
+                created__gt=thirty_days_ago, owner__isnull=False
+            ).count(),
+            Zone.objects.filter(
+                created__gt=ninety_days_ago, owner__isnull=False
+            ).count(),
+            Zone.objects.filter(owner__isnull=False).count(),
+            "" if last_owned_zone_created is None else last_owned_zone_created.created,
         ]
     )
     stats.append(
         [
             "- updated",
-            Zone.objects.filter(updated__gt=one_day_ago).count(),
-            Zone.objects.filter(updated__gt=one_week_ago).count(),
-            Zone.objects.filter(updated__gt=thirty_days_ago).count(),
-            Zone.objects.filter(updated__gt=ninety_days_ago).count(),
+            Zone.objects.filter(updated__gt=one_day_ago, owner__isnull=False).count(),
+            Zone.objects.filter(updated__gt=one_week_ago, owner__isnull=False).count(),
+            Zone.objects.filter(
+                updated__gt=thirty_days_ago, owner__isnull=False
+            ).count(),
+            Zone.objects.filter(
+                updated__gt=ninety_days_ago, owner__isnull=False
+            ).count(),
             "",
-            Zone.objects.order_by("updated").last().updated,
+            "" if last_owned_zone_updated is None else last_owned_zone_updated.updated,
+        ]
+    )
+
+    stats.append(["Zones (anonymous)"])
+    stats.append(
+        [
+            "- created",
+            Zone.objects.filter(
+                created__gt=one_day_ago, owner__isnull=True, is_delegate=False
+            ).count(),
+            Zone.objects.filter(
+                created__gt=one_week_ago, owner__isnull=True, is_delegate=False
+            ).count(),
+            Zone.objects.filter(
+                created__gt=thirty_days_ago, owner__isnull=True, is_delegate=False
+            ).count(),
+            Zone.objects.filter(
+                created__gt=ninety_days_ago, owner__isnull=True, is_delegate=False
+            ).count(),
+            Zone.objects.filter(owner__isnull=True, is_delegate=False).count(),
+            "" if last_anon_zone_created is None else last_anon_zone_created.created,
+        ]
+    )
+    stats.append(
+        [
+            "- updated",
+            Zone.objects.filter(
+                updated__gt=one_day_ago, owner__isnull=True, is_delegate=False
+            ).count(),
+            Zone.objects.filter(
+                updated__gt=one_week_ago, owner__isnull=True, is_delegate=False
+            ).count(),
+            Zone.objects.filter(
+                updated__gt=thirty_days_ago, owner__isnull=True, is_delegate=False
+            ).count(),
+            Zone.objects.filter(
+                updated__gt=ninety_days_ago, owner__isnull=True, is_delegate=False
+            ).count(),
+            "",
+            "" if last_anon_zone_updated is None else last_anon_zone_updated.updated,
+        ]
+    )
+
+    stats.append(["Zones (delegate)"])
+    stats.append(
+        [
+            "- created",
+            Zone.objects.filter(
+                created__gt=one_day_ago, owner__isnull=True, is_delegate=True
+            ).count(),
+            Zone.objects.filter(
+                created__gt=one_week_ago, owner__isnull=True, is_delegate=True
+            ).count(),
+            Zone.objects.filter(
+                created__gt=thirty_days_ago, owner__isnull=True, is_delegate=True
+            ).count(),
+            Zone.objects.filter(
+                created__gt=ninety_days_ago, owner__isnull=True, is_delegate=True
+            ).count(),
+            Zone.objects.filter(owner__isnull=True, is_delegate=True).count(),
+            ""
+            if last_delegate_zone_created is None
+            else last_delegate_zone_created.created,
+        ]
+    )
+    stats.append(
+        [
+            "- updated",
+            Zone.objects.filter(
+                updated__gt=one_day_ago, owner__isnull=True, is_delegate=True
+            ).count(),
+            Zone.objects.filter(
+                updated__gt=one_week_ago, owner__isnull=True, is_delegate=True
+            ).count(),
+            Zone.objects.filter(
+                updated__gt=thirty_days_ago, owner__isnull=True, is_delegate=True
+            ).count(),
+            Zone.objects.filter(
+                updated__gt=ninety_days_ago, owner__isnull=True, is_delegate=True
+            ).count(),
+            "",
+            ""
+            if last_delegate_zone_updated is None
+            else last_delegate_zone_updated.updated,
         ]
     )
 
@@ -547,7 +687,7 @@ def show_stats(
             ZoneApiKey.objects.filter(created__gt=thirty_days_ago).count(),
             ZoneApiKey.objects.filter(created__gt=ninety_days_ago).count(),
             ZoneApiKey.objects.count(),
-            ZoneApiKey.objects.order_by("created").last().created,
+            "" if last_api_key_created is None else last_api_key_created.created,
         ]
     )
     stats.append(
@@ -558,7 +698,7 @@ def show_stats(
             ZoneApiKey.objects.filter(last_used__gt=thirty_days_ago).count(),
             ZoneApiKey.objects.filter(last_used__gt=ninety_days_ago).count(),
             "",
-            ZoneApiKey.objects.order_by("last_used").last().created,
+            "" if last_api_key_used is None else last_api_key_used.last_used,
         ]
     )
 
@@ -633,34 +773,43 @@ def update_txt_record_helper(
     is_web_request: str,
 ):
     new_content = f'"{rr_content}"'  # Normalize
-    ordered_content = get_existing_txt_records(zone_name, rr_name)
+    existing_content = get_existing_txt_records(zone_name, rr_name)
+
+    # Pull out SPF record(s) so we don't change those
+    existing_spf_records = [_ for _ in existing_content if _ == DEFAULT_SPF_POLICY]
+    assert len(existing_spf_records) <= 1
+    existing_user_defined = [_ for _ in existing_content if _ != DEFAULT_SPF_POLICY]
 
     if edit_action == EditActionEnum.ADD:
-        if any([new_content == existing for existing in ordered_content]):
+        if any([new_content == existing for existing in existing_user_defined]):
             if is_web_request:
                 messages.warning(request, "Record already exists")
             return
 
-        if len(ordered_content) < TXT_RECORDS_PER_RRSET_LIMIT:
+        if len(existing_user_defined) < TXT_RECORDS_PER_RRSET_LIMIT:
             # existing content set is small enough, just merge in the new content
-            new_content_set = ordered_content
+            new_content_set = existing_user_defined
+        elif is_web_request:
+            # In the web interface, the user should delete records manually
+            raise CustomExceptionBadRequest(
+                "Limit exceeded, unable to add additional TXT records. Try deleting unneeded records."
+            )
         else:
-            if not is_web_request:
-                # keep only the newest of the existing content
-                new_content_set = [ordered_content[-1]]
-            else:
-                # In the web interface, the user should delete records manually
-                raise CustomExceptionBadRequest(
-                    "Limit exceeded, unable to add additional TXT records. Try deleting unneeded records."
-                )
+            # keep only the newest of the existing user defined content
+            new_content_set = [existing_user_defined[-1]]
         new_content_set.append(new_content)
     else:
         assert edit_action == EditActionEnum.REMOVE
-        new_content_set = [item for item in ordered_content if item != new_content]
-        if len(new_content_set) == len(ordered_content):
+        new_content_set = [
+            item for item in existing_user_defined if item != new_content
+        ]
+        if len(new_content_set) == len(existing_user_defined):
             if is_web_request:
                 messages.warning(request, "Nothing was removed")
             return
+
+    # Always keep the SPF if it previously existed
+    new_content_set.extend(existing_spf_records)
 
     if new_content_set:
         logging.info(f"Updating RRSET {rr_name} TXT with {len(new_content_set)} values")
@@ -690,6 +839,7 @@ def get_existing_txt_records(zone_name: str, rr_name: str) -> List[str]:
 
     # Check invariants
     for record in existing_records:
+        assert all([comment["content"] for comment in existing_comments])
         assert any(
             [
                 comment["content"].startswith(f"{record['content']} : ")

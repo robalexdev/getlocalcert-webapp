@@ -36,7 +36,7 @@ class InstantSubdomainCreatedInfo:
         }
 
 
-def create_instant_subdomain() -> InstantSubdomainCreatedInfo:
+def create_instant_subdomain(is_delegate: bool) -> InstantSubdomainCreatedInfo:
     subdomain_name = str(uuid.uuid4())
     parent_name = InstantSubdomainCreatedInfo.PARENT_DOMAIN
     new_fqdn = f"{subdomain_name}.{parent_name}"
@@ -47,6 +47,7 @@ def create_instant_subdomain() -> InstantSubdomainCreatedInfo:
     new_zone = Zone.objects.create(
         name=new_fqdn,
         owner=None,
+        is_delegate=is_delegate,
     )
     zone_key, secret = ZoneApiKey.create(new_zone)
 
@@ -69,7 +70,7 @@ def set_up_pdns_for_zone(zone_name: str, parent_zone: str):
         # Others don't have default A records
         assert parent_zone == "localcert.net."
 
-    pdns_replace_rrset(zone_name, zone_name, "TXT", 86400, [DEFAULT_SPF_POLICY])
+    pdns_replace_rrset(zone_name, zone_name, "TXT", 1, [DEFAULT_SPF_POLICY])
     pdns_replace_rrset(
         zone_name, f"_dmarc.{zone_name}", "TXT", 86400, [DEFAULT_DMARC_POLICY]
     )

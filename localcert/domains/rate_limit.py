@@ -17,16 +17,19 @@ def should_instant_domain_creation_throttle() -> bool:
     week_count = Zone.objects.filter(
         created__gt=past_week,
         owner__isnull=True,
+        is_delegate=False,  # These shouldn't impact Let's Encrypt rate limit
     ).count()
 
     day_count = Zone.objects.filter(
         created__gt=past_day,
         owner__isnull=True,
+        is_delegate=False,
     ).count()
 
     hour_count = Zone.objects.filter(
         created__gt=past_hour,
         owner__isnull=True,
+        is_delegate=False,
     ).count()
 
     if hour_count >= INSTANT_DOMAINS_PER_HOUR:

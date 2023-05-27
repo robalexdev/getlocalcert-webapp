@@ -1,0 +1,38 @@
+{% if user.is_authenticated %}
+    <div class="title is-3">
+        Welcome back!
+    </div>
+    <div class="block is-size-5">
+        You're signed in as {{ user.username }} <span class="is-size-6">(GitHub)</span>
+    </div>
+    <div class="block is-size-5">
+        <a href="{% url 'list_zones' %}" class="button is-medium is-primary">Manage my subdomains</a>
+    </div>
+{% else %}
+    <h2 class="title is-3">Sign in</h2>
+
+    <div class="block is-size-5">
+    For the fullest experience, please sign in with your GitHub account.
+    </div>
+
+    <div class="block">
+        <form method="post" action="/accounts/github/login/">
+        {% csrf_token %}
+        <button class="button is-primary is-medium" type="submit">Sign in with GitHub</button>
+        </form>
+    </div>
+
+{% endif %}
+
+    <div class="block pt-4">
+        All features are supported, including:
+    </div>
+    <p class="pb-3 pl-4">
+        Web console access
+    </p>
+    <p class="pb-3 pl-4">
+        Choose your own subdomain name
+    </p>
+    <p class="pb-3 pl-4">
+        Management of API keys
+    </p>

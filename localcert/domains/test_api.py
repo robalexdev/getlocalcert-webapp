@@ -1,8 +1,7 @@
 import base64
-import dns
 import json
 
-from .test_utils import WithApiKey
+from .test_utils import WithAcmeDelegate, WithApiKey
 from .views import (
     acmedns_api_health,
     acmedns_api_register,
@@ -12,14 +11,19 @@ from .views import (
     describe_zone,
 )
 from .models import Zone
-from django.conf import settings
 from django.urls import reverse
-from domains.constants import (
+from .constants import (
     ACME_CHALLENGE_LABEL,
+    DEFAULT_SPF_POLICY,
     TXT_RECORDS_PER_RRSET_LIMIT,
     INSTANT_DOMAINS_PER_DAY_BURST,
 )
 from uuid import uuid4
+
+
+CHALLENGE_ONE = "a" * 43
+CHALLENGE_TWO = "b" * 43
+CHALLENGE_THREE = "c" * 43
 
 
 class TestExtraApi(WithApiKey):
@@ -169,68 +173,13 @@ class TestAcmeApi(WithApiKey):
             msg_prefix=f"{response.content}",
         )
 
-    def test_update_anonymous_zone(self):
-        response = self.client.post(
-            reverse(acmedns_api_register),
-            HTTP_HOST="api.getlocalcert.net",
-        )
-        response = response.json()
-        username = response["username"]
-        password = response["password"]
-        subdomain = response["subdomain"]
-        challenge = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-
-        response = self.client.post(
-            reverse(acmedns_api_update),
-            json.dumps(
-                {
-                    "subdomain": subdomain,
-                    "txt": challenge,
-                }
-            ),
-            content_type="application/json",
-            HTTP_HOST="api.getlocalcert.net",
-            HTTP_X_API_USER=username,
-            HTTP_X_API_KEY=password,
-        )
-        self.assertContains(response, f'"txt": "{challenge}"')
-
-    def test_update_case_insensitive(self):
-        response = self.client.post(
-            reverse(acmedns_api_register),
-            HTTP_HOST="api.getlocalcert.net",
-        )
-        response = response.json()
-        username = response["username"]
-        password = response["password"]
-        subdomain = response["subdomain"]
-        challenge = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-
-        response = self.client.post(
-            reverse(acmedns_api_update),
-            json.dumps(
-                # This is the format LEGO uses
-                # https://github.com/cpu/goacmedns/blob/745426768bae5f19dd10e50fa340bba52e2da6ae/client.go#L177
-                {
-                    "SubDomain": subdomain,
-                    "Txt": challenge,
-                }
-            ),
-            content_type="application/json",
-            HTTP_HOST="api.getlocalcert.net",
-            HTTP_X_API_USER=username,
-            HTTP_X_API_KEY=password,
-        )
-        self.assertContains(response, f'"txt": "{challenge}"')
-
     def test_update_txt_record(self):
-        challenge_b64 = self._make_challenge()
-        response = self._acmedns_update(challenge_b64)
+        response = self._acmedns_update(CHALLENGE_ONE)
         self.assertTrue(200, response.status_code)
         response = response.json()
-        self.assertEqual(response["txt"], challenge_b64)
+        self.assertEqual(response["txt"], CHALLENGE_ONE)
 
-        # Also check that we can see the record in the UI
+        # Check that we can see the record in the UI
         self.client.force_login(self.testUser)
         response = self.client.get(
             reverse(
@@ -238,64 +187,112 @@ class TestAcmeApi(WithApiKey):
             ),
             {"zone_name": self.zone.name},
         )
-        self.assertContains(response, challenge_b64)
+        self.assertContains(response, CHALLENGE_ONE)
 
         # Also check that we can see the record in DNS
-        dns_req = dns.message.make_query(
-            f"{ACME_CHALLENGE_LABEL}.{self.zone.name}", "TXT"
+        self.assertHasRecords(
+            f"{ACME_CHALLENGE_LABEL}.{self.zone.name}", "TXT", [CHALLENGE_ONE]
         )
-        dns_resp = dns.query.udp(
-            dns_req,
-            where=settings.LOCALCERT_PDNS_SERVER_IP,
-            port=settings.LOCALCERT_PDNS_DNS_PORT,
-        )
-        self.assertTrue(
-            any([challenge_b64 in str(answer) for answer in dns_resp.answer])
-        )
+        # The record should not be on the subdomain (this is not an acme-delegate domain)
+        self.assertHasRecords(self.zone.name, "TXT", [DEFAULT_SPF_POLICY])
 
     def test_update_txt_records_drops_oldest(self):
         assert TXT_RECORDS_PER_RRSET_LIMIT == 2, "Update this code"
-        challenge_one = "a" * 43
-        challenge_two = "b" * 43
-        challenge_three = "c" * 43
 
         self.client.force_login(self.testUser)
 
         # Add first record
-        response = self._acmedns_update(challenge_one)
-        self.assertContains(response, challenge_one)
+        response = self._acmedns_update(CHALLENGE_ONE)
+        self.assertContains(response, CHALLENGE_ONE)
 
         # Make sure first record is present
         response = self.client.get(
             reverse(describe_zone),
             {"zone_name": self.zone.name},
         )
-        self.assertContains(response, challenge_one)
+        self.assertContains(response, CHALLENGE_ONE)
 
         # Add second record
-        response = self._acmedns_update(challenge_two)
-        self.assertContains(response, challenge_two)
+        response = self._acmedns_update(CHALLENGE_TWO)
+        self.assertContains(response, CHALLENGE_TWO)
 
         # Make sure both records are present
         response = self.client.get(
             reverse(describe_zone),
             {"zone_name": self.zone.name},
         )
-        self.assertContains(response, challenge_one)
-        self.assertContains(response, challenge_two)
+        self.assertContains(response, CHALLENGE_ONE)
+        self.assertContains(response, CHALLENGE_TWO)
 
         # Add third record, trigger overlow
-        response = self._acmedns_update(challenge_three)
-        self.assertContains(response, challenge_three)
+        response = self._acmedns_update(CHALLENGE_THREE)
+        self.assertContains(response, CHALLENGE_THREE)
 
         # Make sure oldest record is gone, other two are present
         response = self.client.get(
             reverse(describe_zone),
             {"zone_name": self.zone.name},
         )
-        self.assertNotContains(response, challenge_one)
-        self.assertContains(response, challenge_two)
-        self.assertContains(response, challenge_three)
+        self.assertNotContains(response, CHALLENGE_ONE)
+        self.assertContains(response, CHALLENGE_TWO)
+        self.assertContains(response, CHALLENGE_THREE)
+
+        # Check via DNS as well
+        self.assertHasRecords(self.zone.name, "TXT", [DEFAULT_SPF_POLICY])
+        self.assertHasRecords(
+            f"{ACME_CHALLENGE_LABEL}.{self.zone.name}",
+            "TXT",
+            [CHALLENGE_TWO, CHALLENGE_THREE],
+        )
+
+
+class TestAcmeDnsUpdate(WithAcmeDelegate):
+    def test_update_anonymous_zone(self):
+        # Delegates should set TXT records at the root of the zone, not _acme-challenge label
+        self.update_txt(CHALLENGE_ONE)
+        self.assertHasRecords(self.fqdn, "TXT", [DEFAULT_SPF_POLICY, CHALLENGE_ONE])
+        self.assertHasRecords(f"{ACME_CHALLENGE_LABEL}.{self.fqdn}", "TXT", [])
+
+    def test_update_txt_records_keeps_spf(self):
+        assert TXT_RECORDS_PER_RRSET_LIMIT == 2, "Update this code"
+        self.assertHasRecords(self.fqdn, "TXT", [DEFAULT_SPF_POLICY])
+
+        self.update_txt(CHALLENGE_ONE)
+        self.assertHasRecords(self.fqdn, "TXT", [DEFAULT_SPF_POLICY, CHALLENGE_ONE])
+
+        self.update_txt(CHALLENGE_TWO)
+        self.assertHasRecords(
+            self.fqdn, "TXT", [DEFAULT_SPF_POLICY, CHALLENGE_ONE, CHALLENGE_TWO]
+        )
+
+        # Adding the third challenge should drop the first challenge, not the SPF
+        self.update_txt(CHALLENGE_THREE)
+        self.assertHasRecords(
+            self.fqdn, "TXT", [DEFAULT_SPF_POLICY, CHALLENGE_TWO, CHALLENGE_THREE]
+        )
+
+    def test_update_case_insensitive(self):
+        response = self.client.post(
+            reverse(acmedns_api_update),
+            json.dumps(
+                # This is the format LEGO uses
+                # https://github.com/cpu/goacmedns/blob/745426768bae5f19dd10e50fa340bba52e2da6ae/client.go#L177
+                {
+                    "SubDomain": self.subdomain,
+                    "Txt": CHALLENGE_ONE,
+                }
+            ),
+            content_type="application/json",
+            HTTP_HOST="api.getlocalcert.net",
+            HTTP_X_API_USER=self.username,
+            HTTP_X_API_KEY=self.password,
+        )
+        self.assertContains(response, f'"txt": "{CHALLENGE_ONE}"')
+        self.assertHasRecords(
+            self.fqdn,
+            "TXT",
+            [DEFAULT_SPF_POLICY, CHALLENGE_ONE],
+        )
 
     def test_update_requires_api_hostname(self):
         response = self.client.post(
@@ -309,52 +306,49 @@ class TestAcmeApi(WithApiKey):
         self.assertContains(response, "Not Found", status_code=404)
 
     def test_update_cannot_change_subdomains(self):
-        challenge_b64 = self._make_challenge()
         response = self.client.post(
             reverse(acmedns_api_update),
             json.dumps(
                 {
                     "subdomain": "foo-" + self.subdomain,
-                    "txt": challenge_b64,
+                    "txt": CHALLENGE_ONE,
                 }
             ),
             content_type="application/json",
             HTTP_HOST="api.getlocalcert.net",
-            HTTP_X_API_USER=self.secretKeyId,
-            HTTP_X_API_KEY=self.secretKey,
+            HTTP_X_API_USER=self.username,
+            HTTP_X_API_KEY=self.password,
         )
         self.assertContains(response, "Subdomain does not exist", status_code=404)
 
     def test_update_cannot_change_unrelated_domain(self):
-        challenge_b64 = self._make_challenge()
         response = self.client.post(
             reverse(acmedns_api_update),
             json.dumps(
                 {
                     "subdomain": str(uuid4()),
-                    "txt": challenge_b64,
+                    "txt": CHALLENGE_ONE,
                 }
             ),
             content_type="application/json",
             HTTP_HOST="api.getlocalcert.net",
-            HTTP_X_API_USER=self.secretKeyId,
-            HTTP_X_API_KEY=self.secretKey,
+            HTTP_X_API_USER=self.username,
+            HTTP_X_API_KEY=self.password,
         )
         self.assertContains(response, "Subdomain does not exist", status_code=404)
 
     def test_missing_inputs(self):
-        challenge_b64 = self._make_challenge()
         response = self.client.post(
             reverse(acmedns_api_update),
             json.dumps(
                 {
-                    "txt": challenge_b64,
+                    "txt": CHALLENGE_ONE,
                 }
             ),
             content_type="application/json",
             HTTP_HOST="api.getlocalcert.net",
-            HTTP_X_API_USER=self.secretKeyId,
-            HTTP_X_API_KEY=self.secretKey,
+            HTTP_X_API_USER=self.username,
+            HTTP_X_API_KEY=self.password,
         )
         self.assertContains(
             response, "subdomain: This field is required", status_code=400
@@ -369,7 +363,7 @@ class TestAcmeApi(WithApiKey):
             ),
             content_type="application/json",
             HTTP_HOST="api.getlocalcert.net",
-            HTTP_X_API_USER=self.secretKeyId,
-            HTTP_X_API_KEY=self.secretKey,
+            HTTP_X_API_USER=self.username,
+            HTTP_X_API_KEY=self.password,
         )
         self.assertContains(response, "txt: This field is required", status_code=400)

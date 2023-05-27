@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block extrahead %}
+<title>getlocalcert</title>
+{% endblock %}
+
+{% block content %}
+
+<h1 class="title is-4">Easy HTTPS for your private networks</h1>
+<div class="block is-size-5">
+  getlocalcert offers free subdomains rooted in the public DNS which are suitable for hosting internal applications.
+  The managed DNS service is compatible with Let's Encrypt, allowing issuance of free certificates.
+</div>
+
+<div class="columns pt-6 is-centered">
+  <div class="column box p-6 m-3 is-5">
+    {% include "github_log_in_block.html" %}
+  </div>
+
+  <div class="column notification p-6 m-3 is-light is-link is-5">
+    <h2 class="title is-3">Instant subdomains</h2>
+
+    <div class="block is-size-5">
+    You can create API-only subdomains <i>without</i> registration.
+    </div>
+
+    <div class="block">
+    {% if enable_instant_domains %}
+      <form method="post" action="{% url 'create_instant_subdomain' %}">
+        {% csrf_token %}
+        <button class="button is-link is-medium is-outlined" type="submit">Create subdomain</button>
+      </form>
+    {% else %}
+        <button class="button is-link is-medium is-outlined" disabled>Create subdomain</button>
+        <p>
+          Due to high usage, instant domains are currently disabled.
+        </p>
+    {% endif %}
+    </div>
+
+    <div class="block pt-4">
+      Limited features are supported:
+    </div>
+    <p class="pb-3 pl-4">
+      <a href="https://docs.getlocalcert.net/api/">API access</a> is required
+    </p>
+    <p class="pb-3 pl-4">
+      Randomized UUID subdomain naming
+    </p>
+    <p class="pb-3 pl-4">
+      Great for testing and development networks
+    </p>
+  </div>
+</div>
+
+<div class="block is-size-5 mt-6">
+  Check out our documentation for additional use cases, such as
+  <a href="https://docs.getlocalcert.net/tips/validation-domain/">ACME DNS-challenge delegate subdomains</a>.
+  Learn about our
+  <a href="https://docs.getlocalcert.net/security/">security-first</a>
+  and
+  <a href="https://docs.getlocalcert.net/">developer-friendly</a>
+  design.
+</div>
+
+<div class="block is-size-5">
+  <a class="button is-medium is-outlined" href="https://docs.getlocalcert.net/">Open documentation</a>
+</div>
+
+{% endblock %}

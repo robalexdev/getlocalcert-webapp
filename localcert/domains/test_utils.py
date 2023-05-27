@@ -1,9 +1,12 @@
+import dns.message as message
+import dns.query as query
 import json
 
 from .utils import CustomExceptionServerError, remove_trailing_dot
 
 from .models import Zone
 from .views import (
+    acmedns_api_register,
     acmedns_api_update,
     add_record,
     register_subdomain,
@@ -11,12 +14,13 @@ from .views import (
 )
 from base64 import urlsafe_b64encode
 from bs4 import BeautifulSoup as bs
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from hashlib import sha256
-from typing import Tuple
+from typing import List, Tuple
 from uuid import uuid4
 
 
@@ -40,7 +44,75 @@ class AlwaysSucceed(TestCase):
         pass
 
 
-class WithUserTests(TransactionTestCase):
+class WithDigClient(TestCase):
+    def setUp(self):
+        super().setUp()
+
+    def _dig(self, fqdn: str, record_type: str) -> List[str]:
+        dns_req = message.make_query(fqdn, record_type)
+        dns_resp = query.udp(
+            dns_req,
+            where=settings.LOCALCERT_PDNS_SERVER_IP,
+            port=settings.LOCALCERT_PDNS_DNS_PORT,
+        )
+        answers = []
+        for rrset in dns_resp.answer:
+            answers.extend([str(_) for _ in rrset])
+        return answers
+
+    def assertHasRecords(
+        self,
+        fqdn: str,
+        recordType: str,
+        required: List[str],
+        match_prefix: bool = False,
+    ):
+        answers = self._dig(fqdn, recordType)
+
+        self.assertEquals(
+            len(answers), len(required), msg=f"Required {required}. Actual {answers}"
+        )
+        for reqRecord in required:
+            if match_prefix:
+                any([_.startswith(reqRecord) for _ in answers])
+            else:
+                any([reqRecord == _ for _ in answers])
+
+
+class WithAcmeDelegate(WithDigClient):
+    def setUp(self):
+        super().setUp()
+
+        response = self.client.post(
+            reverse(acmedns_api_register),
+            HTTP_HOST="api.getlocalcert.net",
+        )
+        self.assertTrue(200, response.status_code)
+        response = response.json()
+        self.username = response["username"]
+        self.password = response["password"]
+        self.subdomain = response["subdomain"]
+        self.fqdn = response["fulldomain"]
+
+    def update_txt(self, challenge_response):
+        response = self.client.post(
+            reverse(acmedns_api_update),
+            json.dumps(
+                {
+                    "subdomain": self.subdomain,
+                    "txt": challenge_response,
+                }
+            ),
+            content_type="application/json",
+            HTTP_HOST="api.getlocalcert.net",
+            HTTP_X_API_USER=self.username,
+            HTTP_X_API_KEY=self.password,
+        )
+        self.assertTrue(200, response.status_code)
+        self.assertEqual(response.json()["txt"], challenge_response)
+
+
+class WithUserTests(WithDigClient, TransactionTestCase):
     def setUp(self):
         super().setUp()
 
