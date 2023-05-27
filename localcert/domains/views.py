@@ -31,7 +31,10 @@ from .pdns import (
     pdns_describe_domain,
     pdns_replace_rrset,
 )
-from .rate_limit import should_instant_domain_creation_throttle
+from .rate_limit import (
+    should_delegate_domain_creation_throttle,
+    should_instant_domain_creation_throttle,
+)
 from .utils import (
     CustomExceptionBadRequest,
     domain_limit_for_user,
@@ -307,6 +310,7 @@ def instant_subdomain(
     request: HttpRequest,
 ) -> HttpResponse:
     if should_instant_domain_creation_throttle():
+        logging.warning("Throttled!")
         messages.warning(
             request,
             "Too many instant domains have been created recently. Try again later.",
@@ -324,6 +328,26 @@ def instant_subdomain(
             "fulldomain": created.get_fulldomain(),
             "credentials_json": json.dumps(created.get_config(), indent=2),
         },
+        status=HTTPStatus.CREATED,
+    )
+
+
+@require_POST
+@csrf_exempt
+def api_instant_subdomain(
+    _: HttpRequest,
+) -> HttpResponse:
+    if should_instant_domain_creation_throttle():
+        logging.warning("Throttled!")
+        return JsonResponse(
+            {"error": "Throttled"},
+            status=420,
+        )
+
+    # TODO expiration
+    created = create_instant_subdomain(is_delegate=False)
+    return JsonResponse(
+        created.get_config(),
         status=HTTPStatus.CREATED,
     )
 
@@ -373,7 +397,8 @@ def api_check_key(
 def acmedns_api_register(
     _: HttpRequest,
 ) -> JsonResponse:
-    if should_instant_domain_creation_throttle():
+    if should_delegate_domain_creation_throttle():
+        logging.warning("Throttled!")
         return JsonResponse(
             {"error": "Throttled"},
             status=420,

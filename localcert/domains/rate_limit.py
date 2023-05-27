@@ -2,10 +2,21 @@ from .models import Zone
 from django.utils import timezone
 from datetime import timedelta
 from .constants import (
+    DELEGATE_DOMAINS_PER_DAY,
     INSTANT_DOMAINS_PER_HOUR,
     INSTANT_DOMAINS_PER_DAY_BURST,
     INSTANT_DOMAINS_PER_WEEK,
 )
+
+
+def should_delegate_domain_creation_throttle() -> bool:
+    now = timezone.now()
+    past_day = now - timedelta(days=1)
+    day_count = Zone.objects.filter(
+        created__gt=past_day,
+        is_delegate=True,
+    ).count()
+    return day_count >= DELEGATE_DOMAINS_PER_DAY
 
 
 def should_instant_domain_creation_throttle() -> bool:

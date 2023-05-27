@@ -8,6 +8,7 @@ from .views import (
     acmedns_api_update,
     api_check_key,
     api_health,
+    api_instant_subdomain,
     describe_zone,
 )
 from .models import Zone
@@ -15,6 +16,7 @@ from django.urls import reverse
 from .constants import (
     ACME_CHALLENGE_LABEL,
     DEFAULT_SPF_POLICY,
+    DELEGATE_DOMAINS_PER_DAY,
     TXT_RECORDS_PER_RRSET_LIMIT,
     INSTANT_DOMAINS_PER_DAY_BURST,
 )
@@ -130,6 +132,39 @@ class TestExtraApi(WithApiKey):
             response, "Missing required header X-Api-Key", status_code=400
         )
 
+    def test_register_instant_domains_throttles(self):
+        for _ in range(INSTANT_DOMAINS_PER_DAY_BURST):
+            Zone.objects.create(name=uuid4(), is_delegate=False)
+
+        response = self.client.post(
+            reverse(api_instant_subdomain),
+            HTTP_HOST="api.getlocalcert.net",
+        )
+        self.assertContains(
+            response,
+            '{"error": "Throttled"}',
+            status_code=420,
+            msg_prefix=f"{response.content}",
+        )
+
+    def test_can_register_instant_domain(self):
+        response = self.client.post(
+            reverse(api_instant_subdomain),
+            HTTP_HOST="api.getlocalcert.net",
+        )
+        self.assertEqual(201, response.status_code)
+        response = response.json()
+        username = response["username"]
+        password = response["password"]
+        subdomain = response["subdomain"]
+        fulldomain = response["fulldomain"]
+        allowfrom = response["allowfrom"]
+
+        self.assertEqual(len(username), len(str(uuid4())))
+        self.assertGreaterEqual(len(password), 32)
+        self.assertTrue(fulldomain.startswith(subdomain))
+        self.assertEqual(allowfrom, [])
+
 
 class TestAcmeApi(WithApiKey):
     def test_health(self):
@@ -158,9 +193,9 @@ class TestAcmeApi(WithApiKey):
         self.assertTrue(fulldomain.startswith(subdomain))
         self.assertEqual(allowfrom, [])
 
-    def test_register_zone_throttles(self):
-        for _ in range(INSTANT_DOMAINS_PER_DAY_BURST):
-            Zone.objects.create(name=uuid4())
+    def test_register_delegate_throttles(self):
+        for _ in range(DELEGATE_DOMAINS_PER_DAY):
+            Zone.objects.create(name=uuid4(), is_delegate=True)
 
         response = self.client.post(
             reverse(acmedns_api_register),

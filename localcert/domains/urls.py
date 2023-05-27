@@ -52,6 +52,11 @@ urlpatterns = [
         views.api_check_key,
         name="api_check_key",
     ),
+    path(
+        "api/v1/register",
+        views.api_instant_subdomain,
+        name="api_instant_subdomain",
+    ),
     # ACME DNS APIs are namespaced
     path(
         "api/v1/acme-dns-compat/health",
