@@ -1,5 +1,9 @@
 ACME_CHALLENGE_LABEL = "_acme-challenge"
 
+# libdns doesn't require trailing slash
+# https://github.com/libdns/acmedns/blob/c6aef518f41a8f2898c277a11e9b54106fa41006/provider.go#L112
+API_ENDPOINT_BASE = "https://api.getlocalcert.net/api/v1/acme-dns-compat"
+
 # Abuse limits
 DOMAIN_PER_USER_LIMIT = 5
 DOMAIN_PER_STAFF_LIMIT = 1_000

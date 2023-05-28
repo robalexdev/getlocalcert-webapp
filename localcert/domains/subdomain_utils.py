@@ -5,6 +5,7 @@ from django.conf import settings
 from typing import Dict
 
 from .constants import (
+    API_ENDPOINT_BASE,
     DEFAULT_DKIM_POLICY,
     DEFAULT_DMARC_POLICY,
     DEFAULT_MX_RECORD,
@@ -32,6 +33,8 @@ class InstantSubdomainCreatedInfo:
             "password": self.password,
             "fulldomain": remove_trailing_dot(self.get_fulldomain()),
             "subdomain": self.subdomain,
+            # See: https://github.com/joohoi/acme-dns/issues/341
+            "server_url": API_ENDPOINT_BASE,
             "allowfrom": [],
         }
 
