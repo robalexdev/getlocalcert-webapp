@@ -15,6 +15,7 @@ from .models import Zone
 from django.urls import reverse
 from .constants import (
     ACME_CHALLENGE_LABEL,
+    API_ENDPOINT_BASE,
     DEFAULT_SPF_POLICY,
     DELEGATE_DOMAINS_PER_DAY,
     TXT_RECORDS_PER_RRSET_LIMIT,
@@ -159,11 +160,50 @@ class TestExtraApi(WithApiKey):
         subdomain = response["subdomain"]
         fulldomain = response["fulldomain"]
         allowfrom = response["allowfrom"]
+        endpoint = response["server_url"]
 
         self.assertEqual(len(username), len(str(uuid4())))
         self.assertGreaterEqual(len(password), 32)
         self.assertTrue(fulldomain.startswith(subdomain))
         self.assertEqual(allowfrom, [])
+        self.assertEqual(endpoint, API_ENDPOINT_BASE)
+
+    def test_invalid_register_instant_domain(self):
+        response = self.client.post(
+            reverse(api_instant_subdomain),
+            {
+                "output_format": "invalid",
+            },
+            HTTP_HOST="api.getlocalcert.net",
+        )
+        self.assertEqual(400, response.status_code)
+
+    def test_register_instant_domain_with_lego_formated_output(self):
+        response = self.client.post(
+            reverse(api_instant_subdomain),
+            {
+                "output_format": "lego",
+            },
+            HTTP_HOST="api.getlocalcert.net",
+        )
+        self.assertEqual(201, response.status_code)
+        response: dict = response.json()
+        outer_fulldomain = [_ for _ in response.keys()][0]
+        creds = response[outer_fulldomain]
+
+        username = creds["username"]
+        password = creds["password"]
+        subdomain = creds["subdomain"]
+        fulldomain = creds["fulldomain"]
+        allowfrom = creds["allowfrom"]
+        endpoint = creds["server_url"]
+
+        self.assertEqual(outer_fulldomain, fulldomain)
+        self.assertEqual(len(username), len(str(uuid4())))
+        self.assertGreaterEqual(len(password), 32)
+        self.assertTrue(fulldomain.startswith(subdomain))
+        self.assertEqual(allowfrom, [])
+        self.assertEqual(endpoint, API_ENDPOINT_BASE)
 
 
 class TestAcmeApi(WithApiKey):

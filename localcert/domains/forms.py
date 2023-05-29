@@ -71,3 +71,10 @@ class DeleteRecordForm(forms.Form):
 
 class DeleteZoneApiKeyForm(forms.Form):
     secret_key_id = UuidField(label="Secret key ID")
+
+
+class RegisterInstantSubdomainForm(forms.Form):
+    output_format = forms.ChoiceField(
+        required=False,
+        choices=(("lego", "lego"),),
+    )

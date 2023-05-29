@@ -55,6 +55,7 @@ from django.views.decorators.http import require_GET, require_POST, require_http
 from domains.forms import (
     AddRecordForm,
     CreateZoneApiKeyForm,
+    RegisterInstantSubdomainForm,
     RegisterSubdomain,
     DeleteRecordForm,
     DeleteZoneApiKeyForm,
@@ -335,8 +336,15 @@ def instant_subdomain(
 @require_POST
 @csrf_exempt
 def api_instant_subdomain(
-    _: HttpRequest,
+    request: HttpRequest,
 ) -> HttpResponse:
+    form = RegisterInstantSubdomainForm(request.POST)
+    if not form.is_valid():
+        return JsonResponse(
+            {"error": "invalid request"},
+            status=HTTPStatus.BAD_REQUEST,
+        )
+
     if should_instant_domain_creation_throttle():
         logging.warning("Throttled!")
         return JsonResponse(
@@ -344,10 +352,15 @@ def api_instant_subdomain(
             status=420,
         )
 
-    # TODO expiration
     created = create_instant_subdomain(is_delegate=False)
+    config_blob = created.get_config()
+
+    if form.cleaned_data["output_format"] == "lego":
+        config_blob = {config_blob["fulldomain"]: config_blob}
+
+    # TODO expiration
     return JsonResponse(
-        created.get_config(),
+        config_blob,
         status=HTTPStatus.CREATED,
     )
 
