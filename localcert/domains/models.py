@@ -8,6 +8,8 @@ from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from hashlib import sha256
 
+from .utils import subdomain_name
+
 
 class User(AbstractUser):
     pass
@@ -38,8 +40,11 @@ class Zone(models.Model):
     updated = models.DateTimeField(auto_now=True)
     is_delegate = models.BooleanField(default=False)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
+
+    def get_subdomain_name(self) -> str:
+        return subdomain_name(self.name)
 
 
 class ZoneApiKey(models.Model):

@@ -1,4 +1,5 @@
 from django import template
+from ..utils import parent_zone_name as util_parent_zone_name
 
 
 register = template.Library()
@@ -62,13 +63,4 @@ def pluralize(i: int, name: str):
 
 @register.filter
 def parent_zone_name(value: str):
-    if value.endswith("."):
-        value = value[:-1]
-    if value.endswith(".localcert.net"):
-        return "localcert.net"
-    elif value.endswith(".localhostcert.net"):
-        return "localhostcert.net"
-    elif value.endswith(".corpnet.work"):
-        return "corpnet.work"
-    else:
-        return "Zone"
+    return util_parent_zone_name(value, soft_error=True)

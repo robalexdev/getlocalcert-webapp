@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 from requests.structures import CaseInsensitiveDict
 
-from .subdomain_utils import create_instant_subdomain, set_up_pdns_for_zone
+from .subdomain_utils import Credentials, create_instant_subdomain, set_up_pdns_for_zone
 from .validators import validate_acme_dns01_txt_value, validate_label
 
 from .constants import (
@@ -256,6 +256,14 @@ def create_zone_api_key(
 
     zoneKey, secret = ZoneApiKey.create(zone)
     logging.info(f"API Key created for {request.user} {zone.name}: {zoneKey.id}")
+
+    credentialInfo = Credentials(
+        username=str(zoneKey.id),
+        password=secret,
+        subdomain=zone.get_subdomain_name(),
+        fulldomain=zone.name,
+    )
+
     return render(
         request,
         "show_new_api_key.html",
@@ -266,6 +274,8 @@ def create_zone_api_key(
             ),
             "secretKeyId": zoneKey.id,
             "secretKey": secret,
+            "credentials_json": credentialInfo.get_config_json(),
+            "credentials_lego_json": credentialInfo.get_lego_config_json(),
         },
     )
 
@@ -327,7 +337,8 @@ def instant_subdomain(
             "username": created.username,
             "password": created.password,
             "fulldomain": created.get_fulldomain(),
-            "credentials_json": json.dumps(created.get_config(), indent=2),
+            "credentials_json": created.get_credentials().get_config_json(),
+            "credentials_lego_json": created.get_credentials().get_lego_config_json(),
         },
         status=HTTPStatus.CREATED,
     )
@@ -353,10 +364,10 @@ def api_instant_subdomain(
         )
 
     created = create_instant_subdomain(is_delegate=False)
-    config_blob = created.get_config()
-
     if form.cleaned_data["output_format"] == "lego":
-        config_blob = {config_blob["fulldomain"]: config_blob}
+        config_blob = created.get_credentials().get_lego_config()
+    else:
+        config_blob = created.get_credentials().get_config()
 
     # TODO expiration
     return JsonResponse(
@@ -420,7 +431,7 @@ def acmedns_api_register(
     # TODO: support allowfrom
     created = create_instant_subdomain(is_delegate=True)
     return JsonResponse(
-        created.get_config(),
+        created.get_credentials().get_config(),
         status=HTTPStatus.CREATED,
     )
 

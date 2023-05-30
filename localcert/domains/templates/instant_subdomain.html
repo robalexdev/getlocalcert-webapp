@@ -37,14 +37,26 @@
       Consider signing in with your GitHub account for additional features, including improved key management and custom subdomain names.
     </p>
 
-    <p class="block">
+    <details class="block">
+      <summary class="is-size-5">
+        View as JSON
+      </summary>
+      <p>
       Here's the same information as a <code>credentials.json</code> file.
       This is a standardized format that several ACME clients support.
-    </p>
+      </p>
+      <pre><code>{{ credentials_json }}</code></pre>
+    </details>
 
-    <p class="block">
-    <pre><code>{{ credentials_json }}</code></pre>
-    </p>
+    <details class="block">
+      <summary class="is-size-5">
+        View as LEGO-style JSON
+      </summary>
+      <p>
+      You can use the following JSON to configure a <a href="https://docs.getlocalcert.net/acme-clients/lego/">LEGO-based ACME client</a>.
+      </p>
+      <pre>{{ credentials_lego_json }}</pre>
+    </details>
 
     <h2 class="title is-4 pt-6">Next steps</h2>
 
@@ -52,6 +64,10 @@
       Take a look through the
       <a href="https://docs.getlocalcert.net/acme-clients/" target="_blank" rel="noopener noreferrer">examples in our documentation</a>
       to learn how you can use your subdomain.
+    </p>
+
+    <p class="block">
+    <a class="button is-secondary" href="{% url 'home_page' %}">Close</a>
     </p>
     </div>
 

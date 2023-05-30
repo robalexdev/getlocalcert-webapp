@@ -95,3 +95,27 @@ def remove_trailing_dot(dn: str) -> str:
     if dn.endswith("."):
         return dn[:-1]
     return dn
+
+
+SUPPORTED_DOMAINS = [
+    "localcert.net",
+    "localhostcert.net",
+    "corpnet.work",
+]
+
+
+def parent_zone_name(value: str, soft_error: bool = False) -> str:
+    value = remove_trailing_dot(value)
+    for suffix in SUPPORTED_DOMAINS:
+        if value.endswith(f".{suffix}"):
+            return suffix
+    assert soft_error
+    return "Zone"
+
+
+def subdomain_name(value: str) -> str:
+    value = remove_trailing_dot(value)
+    for suffix in SUPPORTED_DOMAINS:
+        if value.endswith(f".{suffix}"):
+            return value.removesuffix(f".{suffix}")
+    assert False  # pragma: no cover

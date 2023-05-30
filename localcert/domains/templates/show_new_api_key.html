@@ -44,6 +44,26 @@ This key has scoped access to {{ domain | strip_trailing_dot }}.
     </th>
     <td id="secretKey" class="is-size-5">{{ secretKey }}</td></tr></table>
 
+<details class="block">
+  <summary class="is-size-5">
+    View as JSON
+  </summary>
+  <p>
+    Here's the same information as a credentials.json file. This is a standardized format that several ACME clients support. 
+  </p>
+  <pre>{{ credentials_json }}</pre>
+</details>
+
+<details class="block">
+  <summary class="is-size-5">
+    View as LEGO-style JSON
+  </summary>
+  <p>
+  You can use the following JSON to configure a <a href="https://docs.getlocalcert.net/acme-clients/lego/">LEGO-based ACME client</a>.
+  </p>
+  <pre>{{ credentials_lego_json }}</pre>
+</details>
+
 <p class="block">
   Read the <a href="https://docs.getlocalcert.net/acme-clients/">docs</a> for information on using your API key pair.
 </p>
