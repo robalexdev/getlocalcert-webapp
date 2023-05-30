@@ -386,6 +386,7 @@ def api_health(
 
 
 # acme-dns compat API to check health
+@use_custom_json_errors
 @require_GET
 @require_hostname("api.getlocalcert.net")
 def acmedns_api_health(

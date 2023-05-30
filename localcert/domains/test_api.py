@@ -215,6 +215,13 @@ class TestAcmeApi(WithApiKey):
         self.assertEqual(200, response.status_code)
         self.assertEqual("", response.content.decode("utf-8"))
 
+    def test_health_wrong_host(self):
+        response = self.client.get(
+            reverse(acmedns_api_health),
+            HTTP_HOST="console.getlocalcert.net",
+        )
+        self.assertEqual(404, response.status_code)
+
     def test_can_register_zone(self):
         response = self.client.post(
             reverse(acmedns_api_register),
