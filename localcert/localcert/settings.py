@@ -217,8 +217,9 @@ LOCALCERT_PDNS_NS1 = os.environ["LOCALCERT_PDNS_NS1"]
 LOCALCERT_PDNS_NS2 = os.environ["LOCALCERT_PDNS_NS2"]
 
 # Security settings
+# SESSION_COOKIE_AGE default is two weeks
 if not DEBUG:  # pragma: no cover
-    SECURE_HSTS_SECONDS = 60
+    SECURE_HSTS_SECONDS = 1209600  # two weeks
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     SESSION_COOKIE_SECURE = True
