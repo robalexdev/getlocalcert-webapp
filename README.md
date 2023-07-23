@@ -97,14 +97,17 @@ You'll want to add nameservers for each of the domain names we control
     # pdnsutil create-zone corpnet.work
     # pdnsutil add-record corpnet.work @ NS 3600 ns1.getlocalcert.net
     # pdnsutil add-record corpnet.work @ NS 3600 ns2.getlocalcert.net
+    # pdnsutil add-record corpnet.work _psl TXT 3600 "\"https://github.com/publicsuffix/list/pull/1798\""
 
     # pdnsutil create-zone localcert.net
     # pdnsutil add-record localcert.net @ NS 3600 ns1.getlocalcert.net
     # pdnsutil add-record localcert.net @ NS 3600 ns2.getlocalcert.net
+    # pdnsutil add-record localcert.net _psl TXT 3600 "\"https://github.com/publicsuffix/list/pull/1798\""
 
     # pdnsutil create-zone localhostcert.net
     # pdnsutil add-record localhostcert.net @ NS 3600 ns1.getlocalcert.net
     # pdnsutil add-record localhostcert.net @ NS 3600 ns2.getlocalcert.net
+    # pdnsutil add-record localhostcert.net _psl TXT 3600 "\"https://github.com/publicsuffix/list/pull/1798\""
 
 Complete with MX, SPF, DKIM, DMARC:
 
@@ -142,3 +145,4 @@ XXX this runs the service before the migration is applied, probably want to do i
 
 * PDNS API - https://doc.powerdns.com/authoritative/http-api/index.html
 * acme-dns - https://github.com/joohoi/acme-dns/
+
