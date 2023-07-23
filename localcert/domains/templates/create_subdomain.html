@@ -11,7 +11,7 @@
   <ul>
     <li><a href="/">getlocalcert</a></li>
     <li><a href="{% url 'list_zones'%}">My subdomains</a></li>
-    <li class="is-active"><a href="#" aria-current="page">Register Subdomain</a></li>
+    <li class="is-active"><a href="#" aria-current="page">Register subdomain</a></li>
   </ul>
 </nav>
 
@@ -43,6 +43,7 @@
               <p class="help is-size-6 is-danger">{{ error|escape }}</p>
             {% endfor %}
             {% endif %}
+            <a class="is-size-5" title="Learn more" href="https://docs.getlocalcert.net/domains/">ⓘ</a>
           </p>
         </div>
       </div>
