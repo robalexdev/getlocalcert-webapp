@@ -152,8 +152,8 @@ Run
 
 ## Deployment
 
-    $ source prod.env
-    $ git pull
+    $ ssh <user>@<ip> ./deploy/getlocalcert-webapp/deploy/prod-pull.sh
+    $ ssh <user>@<ip> ./deploy/getlocalcert-webapp/deploy/prod-deploy.sh
 
 ### With Migrations
 
