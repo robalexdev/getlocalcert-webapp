@@ -126,6 +126,30 @@ We'll also need to add glue records to our DNS to allow lookups.
 [See here](https://www.namecheap.com/support/knowledgebase/article.aspx/768/10/how-do-i-register-personal-nameservers-for-my-domain/).
 These are added to getlocalcert.net as ns1/ns2 such that the IP address is actually stored in the root DNS servers.
 
+## Pre-commit testing
+
+In one terminal run:
+
+    $ source test.env ; docker compose -f docker-compose-test.yml --env-file=test.env up
+
+In another run the tests (or commit, which triggers the tests):
+
+    $ source test.env
+    $ python manage.py test [--parallel 12]
+    $ git commit
+
+
+## Python upgrades
+
+Install:
+
+    $ pip install pip-upgrader
+
+Run
+
+    $ pip-upgrader
+
+
 ## Deployment
 
     $ source prod.env
