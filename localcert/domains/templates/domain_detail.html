@@ -131,6 +131,42 @@
   {% endif %}
 </div>
 
+<div class="box">
+  <h2 class="title is-4">Getting Started</h2>
+
+  <p class="block">
+    Be sure to read through the
+    <a href="https://docs.getlocalcert.net/acme-clients/">documentation</a>
+    to learn how getlocalcert.net works.
+  </p>
+
+  <p class="block">
+    Here's a couple hints in case you run into any issues:
+  </p>
+
+  <p class="block">
+    Make sure you try issuing certificates using Let's Encrypt Staging first, then try a production ACME endpoint.
+  </p>
+
+  <p class="block">
+    Use
+    <a href="https://letsdebug.net/?domain={{ domain.name | strip_trailing_dot}}&method=dns-01">Let's Debug</a> 
+    to troubleshoot certificate issuance problems.
+  </p>
+
+  <p class="block">
+    Check which certificates have been issued for your domain using
+    <a href="https://crt.sh/?q={{ domain.name | strip_trailing_dot }}">crt.sh</a>.
+  </p>
+
+  <p class="block">
+    Still stuck?
+    Please
+    <a href="https://docs.getlocalcert.net/contact/">let us know</a>.
+    We're focused on developer experience and are eager to learn what we can improve.
+  </p>
+</div>
+
 <i>Subdomain active since {{domain.created}}</i>
 </div>
 </section>

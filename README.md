@@ -51,6 +51,16 @@ Restart everything and it should now run.
     $ docker compose down
     $ docker compose --env-file=dev.env up -d
 
+See steps to add zones below.
+
+Edit /etc/hosts to point to localhost:
+
+    127.0.0.1       console.getlocalcert.net
+    127.0.0.1       api.getlocalcert.net
+
+Open http://console.getlocalcert.net/
+You may need to clear cookies or clear HSTS settings.
+
 
 ## Django Testing
 
