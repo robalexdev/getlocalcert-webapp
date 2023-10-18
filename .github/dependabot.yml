@@ -9,11 +9,23 @@ updates:
     directory: "/pdns/"
     schedule:
       interval: "weekly"
+    groups:
+      all:
+        patterns:
+          - "*"
   - package-ecosystem: "docker"
     directory: "/localcert/"
     schedule:
       interval: "weekly"
+    groups:
+      all:
+        patterns:
+          - "*"
   - package-ecosystem: "pip"
     directory: "/localcert/"
     schedule:
       interval: "weekly"
+    groups:
+      all:
+        patterns:
+          - "*"
