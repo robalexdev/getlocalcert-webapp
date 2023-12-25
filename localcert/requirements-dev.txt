@@ -1,6 +1,6 @@
 beautifulsoup4==4.12.2
-black==23.10.1
-coverage==7.3.2
+black==23.12.1
+coverage==7.3.4
 dnspython==2.4.2
 flake8==6.1.0
 pip-upgrader==1.4.15
