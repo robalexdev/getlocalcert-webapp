@@ -1,20 +1,21 @@
-# Move to a pinned latest pdns 4.5 is available
-FROM ubuntu:22.04
+FROM golang:1.21 AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY backend.go ./
+RUN go build backend.go
 
-RUN apt update && \
-    apt install -y --no-install-recommends pdns-server pdns-backend-pgsql \
-      python3 python3-pip \
-      postgresql-client \
-      dnsutils curl vim wget iputils-ping && \
+
+FROM debian:12-slim
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt update && \
+    apt install -y --no-install-recommends \
+      pdns-server \
+      pdns-backend-pipe && \
     rm -rf /var/lib/apt/lists/*
-
-# Use envtpl to build the pdns.conf from template (at container start)
-RUN pip install envtpl
-
-COPY docker-entrypoint.sh /
-COPY pdns.conf.tpl /etc/powerdns/pdns.conf.tpl
-
-EXPOSE 53 53/udp 8081 8081/tcp
-
-ENTRYPOINT [ "/docker-entrypoint.sh" ]
-CMD /usr/sbin/pdns_server
+# Always use /app/target as the command
+COPY --from=builder /app/backend /app/backend
+COPY run.sh /app/run.sh
+EXPOSE 53 53/udp
+EXPOSE 53 53/tcp
+CMD /app/run.sh

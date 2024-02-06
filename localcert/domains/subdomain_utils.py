@@ -3,17 +3,18 @@ import logging
 import uuid
 
 from django.conf import settings
+from enum import Enum
 from typing import Dict
 
 from .constants import (
+    ACME_CHALLENGE_LABEL,
     API_ENDPOINT_BASE,
     DEFAULT_DKIM_POLICY,
     DEFAULT_DMARC_POLICY,
     DEFAULT_MX_RECORD,
     DEFAULT_SPF_POLICY,
 )
-from .models import Zone, ZoneApiKey
-from .pdns import pdns_create_zone, pdns_replace_rrset
+from .models import ManagedDomainName, Zone, ZoneApiKey
 from .utils import remove_trailing_dot
 
 
@@ -69,9 +70,7 @@ def create_instant_subdomain(is_delegate: bool) -> InstantSubdomainCreatedInfo:
     subdomain_name = str(uuid.uuid4())
     parent_name = InstantSubdomainCreatedInfo.PARENT_DOMAIN
     new_fqdn = f"{subdomain_name}.{parent_name}"
-
     logging.info(f"Creating instant domain {new_fqdn} for anonymous user")
-    set_up_pdns_for_zone(new_fqdn, parent_name)
 
     new_zone = Zone.objects.create(
         name=new_fqdn,
@@ -87,57 +86,68 @@ def create_instant_subdomain(is_delegate: bool) -> InstantSubdomainCreatedInfo:
     )
 
 
-def set_up_pdns_for_zone(zone_name: str, parent_zone: str):
-    assert zone_name.endswith("." + parent_zone)
+class AddResult(Enum):
+    ADDED = 1
+    NOT_ADDED_ALREADY_EXISTS = 2
+    NOT_ADDED_LIMIT_EXCEEDED = 3
 
-    pdns_create_zone(zone_name)
 
-    # localhostcert.net has predefined A records locked to localhost
-    if parent_zone == "localhostcert.net.":
-        pdns_replace_rrset(zone_name, zone_name, "A", 86400, ["127.0.0.1"])
+def add_acme_challenge_response(
+    zone: Zone, txt: str, strategy_rotate: bool, is_delegate: bool
+) -> AddResult:
+    if is_delegate:
+        # Put the challenge on the subdomain directly
+        # This is how acme-dns does it and it prevents someone from registering
+        # a cert for the delegate subdomain
+        rr_name = zone.name
     else:
-        # Others don't have default A records
-        assert parent_zone == "localcert.net."
+        rr_name = f"{ACME_CHALLENGE_LABEL}.{zone.name}"
+    record, created = ManagedDomainName.objects.get_or_create(
+        name=rr_name,
+        zone=zone,
+    )
+    if txt in [record.new_challenge_response, record.old_challenge_response]:
+        # Already present
+        return AddResult.NOT_ADDED_ALREADY_EXISTS
 
-    pdns_replace_rrset(zone_name, zone_name, "TXT", 1, [DEFAULT_SPF_POLICY])
-    pdns_replace_rrset(
-        zone_name, f"_dmarc.{zone_name}", "TXT", 86400, [DEFAULT_DMARC_POLICY]
-    )
-    pdns_replace_rrset(
-        zone_name, f"*._domainkey.{zone_name}", "TXT", 86400, [DEFAULT_DKIM_POLICY]
-    )
-    pdns_replace_rrset(zone_name, zone_name, "MX", 86400, [DEFAULT_MX_RECORD])
+    if (
+        record.old_challenge_response
+        and record.new_challenge_response
+        and not strategy_rotate
+    ):
+        # Both are set and we aren't rotating: limit exceeded
+        return AddResult.NOT_ADDED_LIMIT_EXCEEDED
+    else:
+        # Rotate in the new response
+        record.old_challenge_response = record.new_challenge_response
+        record.new_challenge_response = txt
+        record.save()
+        return AddResult.ADDED
 
-    pdns_replace_rrset(
-        zone_name,
-        zone_name,
-        "NS",
-        60,
-        [
-            settings.LOCALCERT_PDNS_NS1,
-            settings.LOCALCERT_PDNS_NS2,
-        ],
-    )
 
-    pdns_replace_rrset(
-        zone_name,
-        zone_name,
-        "SOA",
-        60,
-        [
-            settings.LOCALCERT_PDNS_NS1
-            + " soa-admin.robalexdev.com. 0 10800 3600 604800 3600",
-        ],
-    )
+def delete_acme_challenge_record(zone: Zone, txt: str) -> bool:
+    if zone.is_delegate:
+        rr_name = zone.name
+    else:
+        rr_name = f"{ACME_CHALLENGE_LABEL}.{zone.name}"
 
-    # Delegation from parent zone
-    pdns_replace_rrset(
-        parent_zone,
-        zone_name,
-        "NS",
-        60,
-        [
-            settings.LOCALCERT_PDNS_NS1,
-            settings.LOCALCERT_PDNS_NS2,
-        ],
-    )
+    try:
+        managed = ManagedDomainName.objects.get(name=rr_name)
+    except ManagedDomainName.DoesNotExist:
+        return False
+
+    records = [managed.new_challenge_response, managed.old_challenge_response]
+    updated_records = [_ for _ in records if _ != txt]
+    if len(records) == len(updated_records):
+        # Nothing removed
+        return False
+    elif len(updated_records) == 1:
+        # One item removed
+        managed.old_challenge_response = ""
+        managed.new_challenge_response = updated_records[0]
+        managed.save()
+        return True
+    else:
+        # No records remain
+        managed.delete()
+        return True

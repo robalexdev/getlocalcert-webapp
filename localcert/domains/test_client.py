@@ -1,3 +1,5 @@
+import time
+
 from django.test import TestCase
 
 from .constants import (
@@ -413,6 +415,9 @@ class TestCreateResourceRecord(WithZoneTests):
         self.assertRedirects(response, expected_redirect)
         self.assertContains(response, ACME_CHALLENGE_LABEL)
         self.assertContains(response, self.record_value)
+
+        # Let database update...
+        time.sleep(1)
 
         # Also check that we can see the record in DNS
         self.assertHasRecords(

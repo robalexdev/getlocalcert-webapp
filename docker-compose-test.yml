@@ -7,38 +7,22 @@ services:
     ports:
       - 5432:5432
     environment:
-      - POSTGRES_DB=localcert-pdns
+      # TODO: via variable
+      - POSTGRES_DB=test_localcert-web
       - POSTGRES_PASSWORD
       - POSTGRES_USER
 
   pdns:
     build: pdns
-    restart: "no"
-    command: >
-        bash -c "export PGPASSWORD=${POSTGRES_PASSWORD} &&
-        sleep 2 &&
-        psql -h db -U ${POSTGRES_USER} -d ${LOCALCERT_PDNS_DB_NAME} -w -a -f /usr/share/doc/pdns-backend-pgsql/schema.pgsql.sql &&
-        pdnsutil create-zone corpnet.work &&
-        pdnsutil add-record corpnet.work @ NS 3600 ns1.getlocalcert.net &&
-        pdnsutil add-record corpnet.work @ NS 3600 ns2.getlocalcert.net &&
-        pdnsutil create-zone localcert.net &&
-        pdnsutil add-record localcert.net @ NS 3600 ns1.getlocalcert.net &&
-        pdnsutil add-record localcert.net @ NS 3600 ns2.getlocalcert.net &&
-        pdnsutil create-zone localhostcert.net &&
-        pdnsutil add-record localhostcert.net @ NS 3600 ns1.getlocalcert.net &&
-        pdnsutil add-record localhostcert.net @ NS 3600 ns2.getlocalcert.net &&
-        /usr/sbin/pdns_server"
-
+    restart: "unless-stopped"
+    command: "/app/run.sh"
     ports:
-      - "8081:8081"
       - "8053:53/udp"
-    environment:
-      - LOCALCERT_PDNS_DB_NAME
-      - LOCALCERT_PDNS_DEFAULT_SOA_CONTENT
-      - LOCALCERT_PDNS_HOST
-      - LOCALCERT_PDNS_WEBSERVER_ALLOW_FROM
-      - LOCALCERT_SHARED_PDNS_API_KEY
-      - POSTGRES_PASSWORD
-      - POSTGRES_USER
+      - "8053:53/tcp"
     depends_on:
       - db
+    environment:
+      - POSTGRES_PASSWORD
+      - POSTGRES_USER
+      # The Django test DB has a test_ prefix
+      - LOCALCERT_WEB_DB_NAME=test_localcert-web

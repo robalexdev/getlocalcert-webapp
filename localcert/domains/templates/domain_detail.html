@@ -35,41 +35,25 @@
       </tr>
     </thead>
     <tbody>
-      {% for rrset in rrsets %}
-        {% for record in rrset.records %}
+      {% for record in zone_txt_records %}
         <tr>
           <td>
-            {{ rrset.type }}
+            TXT
           </td>
-          <td title="{{ rrset.name }}">
-          {{ rrset.name | strip_domain_name }}
+          <td title="_acme-challenge.{{ record.name }}">
+          _acme-challenge.{{ record.name | strip_domain_name }}
           </td>
           <td>
-          {{ rrset.ttl | namedDuration }}
+          <!-- TODO -->
+          {{ '60' | namedDuration }}
           </td>
           <td>
           {{ record.content }}
           </td>
           <td>
-          {% if rrset.type == "TXT" and rrset.name|startswith:"_acme-challenge" %}
-          <a class="button is-danger is-small is-outlined" href="{% url 'delete_record' %}?zone_name={{domain.name}}&rr_content={{record.content}}">Delete</a>
-          {% else %}
-            {% if rrset.type == "A" %}
-              <a title="Learn more" href="https://docs.getlocalcert.net/records/#a-records">
-            {% elif rrset.type == "SOA" %}
-              <a title="Learn more" href="https://docs.getlocalcert.net/records/#soa-records">
-            {% else %}
-              <a title="Learn more" href="https://docs.getlocalcert.net/records/#email-records">
-            {% endif %}
-            &nbsp;
-            <span title="This record cannot be modified">🔒</span>
-            &nbsp;
-            ⓘ
-            </a>
-          {% endif %}
+          <a class="button is-danger is-small is-outlined" href="{% url 'delete_record' %}?zone_name={{record.name}}&rr_content={{record.content}}">Delete</a>
           </td>
         </tr>
-        {% endfor %}
       {% endfor %}
     </tbody>
   </table>

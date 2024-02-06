@@ -6,11 +6,16 @@ from django.urls import reverse
 from django.utils import timezone
 from requests.structures import CaseInsensitiveDict
 
-from .subdomain_utils import Credentials, create_instant_subdomain, set_up_pdns_for_zone
+from .subdomain_utils import (
+    AddResult,
+    Credentials,
+    add_acme_challenge_response,
+    create_instant_subdomain,
+    delete_acme_challenge_record,
+)
 from .validators import validate_acme_dns01_txt_value, validate_label
 
 from .constants import (
-    ACME_CHALLENGE_LABEL,
     API_KEY_PER_ZONE_LIMIT,
     DEFAULT_SPF_POLICY,
     TXT_RECORDS_PER_RRSET_LIMIT,
@@ -25,11 +30,6 @@ from .models import (
     User,
     Zone,
     ZoneApiKey,
-)
-from .pdns import (
-    pdns_delete_rrset,
-    pdns_describe_domain,
-    pdns_replace_rrset,
 )
 from .rate_limit import (
     should_delegate_domain_creation_throttle,
@@ -136,7 +136,6 @@ def register_subdomain(
             zone_name = form.cleaned_data["zone_name"]  # synthetic field
 
             logging.info(f"Creating domain {zone_name} for user {request.user.id}...")
-            set_up_pdns_for_zone(zone_name, parent_zone)
             newZone = Zone.objects.create(
                 name=zone_name,
                 owner=request.user,
@@ -173,7 +172,7 @@ def describe_zone(
     zone_name = form.cleaned_data["zone_name"]
 
     zone = (
-        Zone.objects.prefetch_related("zoneapikey_set")
+        Zone.objects.prefetch_related("zoneapikey_set", "manageddomainname_set")
         .filter(
             name=zone_name,
             owner=request.user,
@@ -188,22 +187,23 @@ def describe_zone(
 
     keys = [_ for _ in zone.zoneapikey_set.all()]
 
-    details = pdns_describe_domain(zone.name)
-    records = sorted(details["rrsets"], key=sort_records_key)
-
-    zone_txt_records = [
-        rrset
-        for rrset in details["rrsets"]
-        if rrset["type"] == "TXT"
-        and rrset["name"] == f"{ACME_CHALLENGE_LABEL}.{zone.name}"
-    ]
-    if len(zone_txt_records) == 0:
-        can_add_records = True
-    elif len(zone_txt_records) == 1:
-        record_count = len(zone_txt_records[0]["records"])
-        can_add_records = record_count < TXT_RECORDS_PER_RRSET_LIMIT
-    else:
-        assert False, "Expected only one TXT rrset per domain"  # pragma: no cover
+    zone_txt_records = []
+    for domain_detail in zone.manageddomainname_set.all():
+        if domain_detail.new_challenge_response:
+            zone_txt_records.append(
+                {
+                    "name": domain_detail.name,
+                    "content": domain_detail.new_challenge_response,
+                }
+            )
+        if domain_detail.old_challenge_response:
+            zone_txt_records.append(
+                {
+                    "name": domain_detail.name,
+                    "content": domain_detail.old_challenge_response,
+                }
+            )
+    can_add_records = len(zone_txt_records) < TXT_RECORDS_PER_RRSET_LIMIT
 
     return render(
         request,
@@ -215,7 +215,7 @@ def describe_zone(
             ),
             "keys": keys,
             "can_create_api_key": len(keys) < API_KEY_PER_ZONE_LIMIT,
-            "rrsets": records,
+            "zone_txt_records": zone_txt_records,
             "can_add_records": can_add_records,
         },
     )
@@ -473,24 +473,9 @@ def acmedns_api_update(
             "Subdomain does not exist or the provided key does not have access",
             status_code=404,
         )
-
-    if zone.is_delegate:
-        # Put the challenge on the subdomain directly
-        # This is how acme-dns does it and it prevents someone from registering
-        # a cert for the delegate subdomain
-        rr_name = zone.name
-    else:
-        rr_name = f"{ACME_CHALLENGE_LABEL}.{zone.name}"
-
-    update_txt_record_helper(
-        request=request,
-        zone_name=zone.name,
-        rr_name=rr_name,
-        edit_action=EditActionEnum.ADD,
-        rr_content=txt,
-        is_web_request=False,
+    add_acme_challenge_response(
+        zone, txt, strategy_rotate=True, is_delegate=zone.is_delegate
     )
-
     return JsonResponse({"txt": txt})
 
 
@@ -519,16 +504,11 @@ def delete_record(
                     status_code=404,
                 )
 
-            rr_name = f"{ACME_CHALLENGE_LABEL}.{zone.name}"
-            update_txt_record_helper(
-                request=request,
-                zone_name=zone.name,
-                rr_name=rr_name,
-                edit_action=EditActionEnum.REMOVE,
-                rr_content=rr_content,
-                is_web_request=True,
-            )
-
+            was_removed = delete_acme_challenge_record(zone, rr_content)
+            if was_removed:
+                messages.info(request, "Record removed")
+            else:
+                messages.info(request, "Nothing was removed")
             return redirect(
                 build_url(
                     "describe_zone",
@@ -782,15 +762,25 @@ def add_record(
                     status_code=404,
                 )
 
-            rr_name = f"{ACME_CHALLENGE_LABEL}.{zone.name}"
-            update_txt_record_helper(
-                request=request,
-                zone_name=zone.name,
-                rr_name=rr_name,
-                edit_action=EditActionEnum.ADD,
-                rr_content=rr_content,
-                is_web_request=True,
+            # TODO: Web UI seems not to support delegate
+            # But it's also a propery of the registered zone?
+            # Maybe it's not supported?
+            was_added = add_acme_challenge_response(
+                zone,
+                rr_content,
+                strategy_rotate=False,
+                is_delegate=False,
             )
+            if was_added == AddResult.ADDED:
+                messages.success(request, "Record added")
+            elif was_added == AddResult.NOT_ADDED_ALREADY_EXISTS:
+                messages.warning(request, "Record already exists")
+            elif was_added == AddResult.NOT_ADDED_LIMIT_EXCEEDED:
+                raise CustomExceptionBadRequest(
+                    "Limit exceeded, unable to add additional TXT records. Try deleting unneeded records.",
+                )
+            else:
+                assert False, "Unknown add result"
 
             return redirect(
                 build_url(
@@ -807,104 +797,3 @@ def add_record(
     return render(
         request, "create_resource_record.html", {"form": form}, status=form_status
     )
-
-
-class EditActionEnum(Enum):
-    ADD = 1
-    REMOVE = 2
-
-
-def update_txt_record_helper(
-    request: HttpRequest,
-    zone_name: str,
-    rr_name: str,
-    edit_action: EditActionEnum,
-    rr_content: str,
-    is_web_request: str,
-):
-    new_content = f'"{rr_content}"'  # Normalize
-    existing_content = get_existing_txt_records(zone_name, rr_name)
-
-    # Pull out SPF record(s) so we don't change those
-    existing_spf_records = [_ for _ in existing_content if _ == DEFAULT_SPF_POLICY]
-    assert len(existing_spf_records) <= 1
-    existing_user_defined = [_ for _ in existing_content if _ != DEFAULT_SPF_POLICY]
-
-    if edit_action == EditActionEnum.ADD:
-        if any([new_content == existing for existing in existing_user_defined]):
-            if is_web_request:
-                messages.warning(request, "Record already exists")
-            return
-
-        if len(existing_user_defined) < TXT_RECORDS_PER_RRSET_LIMIT:
-            # existing content set is small enough, just merge in the new content
-            new_content_set = existing_user_defined
-        elif is_web_request:
-            # In the web interface, the user should delete records manually
-            raise CustomExceptionBadRequest(
-                "Limit exceeded, unable to add additional TXT records. Try deleting unneeded records."
-            )
-        else:
-            # keep only the newest of the existing user defined content
-            new_content_set = [existing_user_defined[-1]]
-        new_content_set.append(new_content)
-    else:
-        assert edit_action == EditActionEnum.REMOVE
-        new_content_set = [
-            item for item in existing_user_defined if item != new_content
-        ]
-        if len(new_content_set) == len(existing_user_defined):
-            if is_web_request:
-                messages.warning(request, "Nothing was removed")
-            return
-
-    # Always keep the SPF if it previously existed
-    new_content_set.extend(existing_spf_records)
-
-    if new_content_set:
-        logging.info(f"Updating RRSET {rr_name} TXT with {len(new_content_set)} values")
-        # Replace to update the content
-        pdns_replace_rrset(zone_name, rr_name, "TXT", 1, new_content_set)
-    else:
-        logging.info(f"Deleting RRSET {rr_name} TXT")
-        # Nothing remaining, delete the rr_set
-        pdns_delete_rrset(zone_name, rr_name, "TXT")
-    if is_web_request:
-        if edit_action == EditActionEnum.ADD:
-            messages.success(request, "Record added")
-        else:
-            messages.success(request, "Record removed")
-
-
-def get_existing_txt_records(zone_name: str, rr_name: str) -> List[str]:
-    details = pdns_describe_domain(zone_name)
-    existing_records = []
-    existing_comments = []
-    if details["rrsets"]:
-        for rrset in details["rrsets"]:
-            if rrset["name"] == rr_name and rrset["type"] == "TXT":
-                existing_records = rrset["records"]
-                existing_comments = rrset["comments"]
-                break
-
-    # Check invariants
-    for record in existing_records:
-        assert all([comment["content"] for comment in existing_comments])
-        assert any(
-            [
-                comment["content"].startswith(f"{record['content']} : ")
-                for comment in existing_comments
-            ]
-        )
-    assert len(existing_comments) == len(existing_records)
-
-    # Each comment will contain "<content> : <index>" where <content> matches the TXT record
-    # content and <index> tracks the order these were added (oldest at index 0)
-    # Sort these so we can trim old content if needed
-    ordered_comments = sorted(
-        existing_comments, key=lambda x: int(x["content"].split(" : ")[1])
-    )
-    ordered_content = [
-        comment["content"].split(" : ")[0] for comment in ordered_comments
-    ]
-    return ordered_content

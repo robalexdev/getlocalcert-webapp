@@ -53,14 +53,17 @@ class ZoneApiKey(models.Model):
         default=uuid.uuid4,
         editable=False,
     )
-
     zone = models.ForeignKey(
         Zone,
         on_delete=models.CASCADE,
         null=False,
         editable=False,
     )
-
+    name = models.CharField(
+        max_length=253,
+        editable=False,
+        # TODO: indexable
+    )
     hash = models.BinaryField(
         max_length=32,  # SHA256->32 bytes
         editable=False,
@@ -77,9 +80,36 @@ class ZoneApiKey(models.Model):
         secret_key = create_secret()
         obj = ZoneApiKey.objects.create(
             zone=zone,
+            name=zone.name,
             hash=hash_secret(secret_key),
         )
         return obj, secret_key
+
+
+class ManagedDomainName(models.Model):
+    name = models.CharField(
+        primary_key=True,
+        max_length=253,
+        editable=False,
+    )
+    zone = models.ForeignKey(
+        Zone,
+        on_delete=models.CASCADE,
+        null=False,
+        editable=False,
+    )
+    old_challenge_response = models.CharField(
+        max_length=48,
+        editable=True,
+        blank=True,
+    )
+    new_challenge_response = models.CharField(
+        max_length=48,
+        editable=True,
+        blank=True,
+    )
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
 
 DOMAIN_LABEL_CHARS = string.digits + string.ascii_lowercase

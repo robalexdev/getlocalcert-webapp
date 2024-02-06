@@ -22,6 +22,7 @@ from django.urls import reverse
 from hashlib import sha256
 from typing import List, Tuple
 from uuid import uuid4
+import time
 
 
 User = get_user_model()
@@ -44,7 +45,9 @@ class AlwaysSucceed(TestCase):
         pass
 
 
-class WithDigClient(TestCase):
+# Needs TransactionTestCase so the test isn't run in a single TX
+# PDNS backend needs to see the records
+class WithDigClient(TransactionTestCase):
     def setUp(self):
         super().setUp()
 
@@ -112,7 +115,7 @@ class WithAcmeDelegate(WithDigClient):
         self.assertEqual(response.json()["txt"], challenge_response)
 
 
-class WithUserTests(WithDigClient, TransactionTestCase):
+class WithUserTests(WithDigClient):
     def setUp(self):
         super().setUp()
 
