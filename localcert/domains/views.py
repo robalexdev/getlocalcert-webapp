@@ -614,18 +614,18 @@ def show_stats(
     stats.append(
         [
             "- returning users (30 days)",
-            User.objects.filter(last_login__gt=one_day_ago)
-            .filter(date_joined__gt=thirty_days_ago)
-            .count(),
-            User.objects.filter(last_login__gt=one_week_ago)
-            .filter(date_joined__gt=thirty_days_ago)
-            .count(),
-            User.objects.filter(last_login__gt=thirty_days_ago)
-            .filter(date_joined__gt=thirty_days_ago)
-            .count(),
-            User.objects.filter(last_login__gt=ninety_days_ago)
-            .filter(date_joined__gt=thirty_days_ago)
-            .count(),
+            User.objects.filter(
+                last_login__gt=one_day_ago, date_joined__gt=thirty_days_ago
+            ).count(),
+            User.objects.filter(
+                last_login__gt=one_week_ago, date_joined__gt=thirty_days_ago
+            ).count(),
+            User.objects.filter(
+                last_login__gt=thirty_days_ago, date_joined__gt=thirty_days_ago
+            ).count(),
+            User.objects.filter(
+                last_login__gt=ninety_days_ago, date_joined__gt=thirty_days_ago
+            ).count(),
             "",
             "",
         ]
@@ -744,6 +744,25 @@ def show_stats(
             ""
             if last_delegate_zone_updated is None
             else last_delegate_zone_updated.updated,
+        ]
+    )
+
+    stats.append(["Zones (any)"])
+    stats.append(
+        [
+            "- updated in the last 30 days, active since [time]",
+            "",
+            "",
+            Zone.objects.filter(
+                updated__lt=thirty_days_ago,
+                created__gt=thirty_days_ago,
+            ).count(),
+            Zone.objects.filter(
+                updated__lt=thirty_days_ago,
+                created__gt=ninety_days_ago,
+            ).count(),
+            "",
+            "",
         ]
     )
 
