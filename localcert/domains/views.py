@@ -611,6 +611,25 @@ def show_stats(
             "" if last_login_user is None else last_login_user.last_login,
         ]
     )
+    stats.append(
+        [
+            "- returning users (30 days)",
+            User.objects.filter(last_login__gt=one_day_ago)
+            .filter(date_joined__gt=thirty_days_ago)
+            .count(),
+            User.objects.filter(last_login__gt=one_week_ago)
+            .filter(date_joined__gt=thirty_days_ago)
+            .count(),
+            User.objects.filter(last_login__gt=thirty_days_ago)
+            .filter(date_joined__gt=thirty_days_ago)
+            .count(),
+            User.objects.filter(last_login__gt=ninety_days_ago)
+            .filter(date_joined__gt=thirty_days_ago)
+            .count(),
+            "",
+            "",
+        ]
+    )
 
     stats.append(["Zones (owned)"])
     stats.append(
