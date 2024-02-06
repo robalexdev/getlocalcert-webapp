@@ -25,6 +25,8 @@ updates:
     directory: "/localcert/"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "black"
     groups:
       all:
         patterns:
