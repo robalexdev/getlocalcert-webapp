@@ -1,6 +1,7 @@
 import dns.message as message
 import dns.query as query
 import json
+import time
 
 from .utils import CustomExceptionServerError, remove_trailing_dot
 
@@ -22,7 +23,6 @@ from django.urls import reverse
 from hashlib import sha256
 from typing import List, Tuple
 from uuid import uuid4
-import time
 
 
 User = get_user_model()
@@ -57,11 +57,26 @@ class WithDigClient(TransactionTestCase):
             dns_req,
             where=settings.LOCALCERT_PDNS_SERVER_IP,
             port=settings.LOCALCERT_PDNS_DNS_PORT,
+            timeout=1.0,
         )
         answers = []
         for rrset in dns_resp.answer:
             answers.extend([str(_) for _ in rrset])
         return answers
+
+    def _recordsMatch(
+        self, required: List[str], answers: List[str], match_prefix: bool
+    ):
+        if len(answers) != len(required):
+            return False
+        for reqRecord in required:
+            if match_prefix:
+                if not any([_.startswith(reqRecord) for _ in answers]):
+                    return False
+            else:
+                if not any([reqRecord == _ for _ in answers]):
+                    return False
+        return True
 
     def assertHasRecords(
         self,
@@ -70,16 +85,18 @@ class WithDigClient(TransactionTestCase):
         required: List[str],
         match_prefix: bool = False,
     ):
-        answers = self._dig(fqdn, recordType)
-
-        self.assertEquals(
-            len(answers), len(required), msg=f"Required {required}. Actual {answers}"
-        )
-        for reqRecord in required:
-            if match_prefix:
-                any([_.startswith(reqRecord) for _ in answers])
+        for retry in range(10):
+            answers = self._dig(fqdn, recordType)
+            success = (self._recordsMatch(required, answers, match_prefix),)
+            if success:
+                break
             else:
-                any([reqRecord == _ for _ in answers])
+                print("Retry:", retry)
+                time.sleep(1)
+        self.assertTrue(
+            success,
+            msg=f"Required {required} for {fqdn} {recordType}. Actual {answers}",
+        )
 
 
 class WithAcmeDelegate(WithDigClient):

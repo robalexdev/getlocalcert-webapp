@@ -17,7 +17,6 @@ from .validators import validate_acme_dns01_txt_value, validate_label
 
 from .constants import (
     API_KEY_PER_ZONE_LIMIT,
-    DEFAULT_SPF_POLICY,
     TXT_RECORDS_PER_RRSET_LIMIT,
 )
 from .decorators import (
@@ -38,7 +37,6 @@ from .rate_limit import (
 from .utils import (
     CustomExceptionBadRequest,
     domain_limit_for_user,
-    sort_records_key,
     build_url,
 )
 from django.contrib import messages
@@ -61,9 +59,7 @@ from domains.forms import (
     DeleteZoneApiKeyForm,
     DescribeZoneForm,
 )
-from enum import Enum
 from http import HTTPStatus
-from typing import List
 
 
 @require_GET
@@ -132,9 +128,7 @@ def register_subdomain(
         if not form.is_valid():
             form_status = HTTPStatus.BAD_REQUEST
         else:
-            parent_zone = form.cleaned_data["parent_zone"]
             zone_name = form.cleaned_data["zone_name"]  # synthetic field
-
             logging.info(f"Creating domain {zone_name} for user {request.user.id}...")
             newZone = Zone.objects.create(
                 name=zone_name,

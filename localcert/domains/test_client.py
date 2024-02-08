@@ -7,11 +7,12 @@ from .constants import (
     API_KEY_PER_ZONE_LIMIT,
     DEFAULT_DKIM_POLICY,
     DEFAULT_DMARC_POLICY,
+    DEFAULT_MX_RECORD,
     DEFAULT_SPF_POLICY,
     DOMAIN_PER_STAFF_LIMIT,
     DOMAIN_PER_USER_LIMIT,
-    TXT_RECORDS_PER_RRSET_LIMIT,
     INSTANT_DOMAINS_PER_DAY_BURST,
+    TXT_RECORDS_PER_RRSET_LIMIT,
 )
 from .models import (
     Zone,
@@ -292,9 +293,13 @@ class TestCreateFreeDomains(WithUserTests):
 
         # Also check that we can see the record in DNS
         self.assertHasRecords(zone.name, "A", ["127.0.0.1"])
-        self.assertHasRecords(zone.name, "NS", ["ns1.example.com.", "ns2.example.com."])
-        self.assertHasRecords(zone.name, "SOA", ["ns1.example.com."], match_prefix=True)
-        self.assertHasRecords(zone.name, "MX", [DEFAULT_SPF_POLICY])
+        self.assertHasRecords(
+            zone.name, "NS", ["ns1.getlocalcert.net.", "ns2.getlocalcert.net."]
+        )
+        self.assertHasRecords(
+            zone.name, "SOA", ["ns1.getlocalcert.net."], match_prefix=True
+        )
+        self.assertHasRecords(zone.name, "MX", [DEFAULT_MX_RECORD])
         self.assertHasRecords(f"*._domainkey.{zone.name}", "TXT", [DEFAULT_DKIM_POLICY])
         self.assertHasRecords(zone.name, "TXT", [DEFAULT_SPF_POLICY])
         self.assertHasRecords(f"_dmarc.{zone.name}", "TXT", [DEFAULT_DMARC_POLICY])
@@ -421,7 +426,9 @@ class TestCreateResourceRecord(WithZoneTests):
 
         # Also check that we can see the record in DNS
         self.assertHasRecords(
-            f"{ACME_CHALLENGE_LABEL}.{self.zone.name}", "TXT", [self.record_value]
+            f"{ACME_CHALLENGE_LABEL}.{self.zone.name}",
+            "TXT",
+            ['"' + self.record_value + '"'],
         )
 
     def test_unsupported_domain(self):

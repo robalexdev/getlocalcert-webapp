@@ -90,7 +90,7 @@ Setup testing env:
 
 Run tests:
 
-    $ python manage.py test
+    $ python manage.py test --keepdb
 
 
 Optionally run in parallel for a speedup:

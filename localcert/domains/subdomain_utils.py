@@ -2,17 +2,12 @@ import json
 import logging
 import uuid
 
-from django.conf import settings
 from enum import Enum
 from typing import Dict
 
 from .constants import (
     ACME_CHALLENGE_LABEL,
     API_ENDPOINT_BASE,
-    DEFAULT_DKIM_POLICY,
-    DEFAULT_DMARC_POLICY,
-    DEFAULT_MX_RECORD,
-    DEFAULT_SPF_POLICY,
 )
 from .models import ManagedDomainName, Zone, ZoneApiKey
 from .utils import remove_trailing_dot

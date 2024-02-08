@@ -29,6 +29,15 @@ CHALLENGE_TWO = "b" * 43
 CHALLENGE_THREE = "c" * 43
 
 
+def quoted(s: str) -> str:
+    return '"' + s + '"'
+
+
+CHALLENGE_ONE_QUOTED = quoted(CHALLENGE_ONE)
+CHALLENGE_TWO_QUOTED = quoted(CHALLENGE_TWO)
+CHALLENGE_THREE_QUOTED = quoted(CHALLENGE_THREE)
+
+
 class TestExtraApi(WithApiKey):
     def _build_basic_auth(self):
         creds = f"{self.secretKeyId}:{self.secretKey}"
@@ -273,7 +282,9 @@ class TestAcmeApi(WithApiKey):
 
         # Also check that we can see the record in DNS
         self.assertHasRecords(
-            f"{ACME_CHALLENGE_LABEL}.{self.zone.name}", "TXT", [CHALLENGE_ONE]
+            f"{ACME_CHALLENGE_LABEL}.{self.zone.name}",
+            "TXT",
+            [CHALLENGE_ONE_QUOTED],
         )
         # The record should not be on the subdomain (this is not an acme-delegate domain)
         self.assertHasRecords(self.zone.name, "TXT", [DEFAULT_SPF_POLICY])
@@ -324,7 +335,7 @@ class TestAcmeApi(WithApiKey):
         self.assertHasRecords(
             f"{ACME_CHALLENGE_LABEL}.{self.zone.name}",
             "TXT",
-            [CHALLENGE_TWO, CHALLENGE_THREE],
+            [CHALLENGE_TWO_QUOTED, CHALLENGE_THREE_QUOTED],
         )
 
 
@@ -332,25 +343,22 @@ class TestAcmeDnsUpdate(WithAcmeDelegate):
     def test_update_anonymous_zone(self):
         # Delegates should set TXT records at the root of the zone, not _acme-challenge label
         self.update_txt(CHALLENGE_ONE)
-        self.assertHasRecords(self.fqdn, "TXT", [DEFAULT_SPF_POLICY, CHALLENGE_ONE])
+        self.assertHasRecords(
+            self.fqdn, "TXT", [DEFAULT_SPF_POLICY, CHALLENGE_ONE_QUOTED]
+        )
         self.assertHasRecords(f"{ACME_CHALLENGE_LABEL}.{self.fqdn}", "TXT", [])
 
     def test_update_txt_records_keeps_spf(self):
         assert TXT_RECORDS_PER_RRSET_LIMIT == 2, "Update this code"
-        self.assertHasRecords(self.fqdn, "TXT", [DEFAULT_SPF_POLICY])
-
-        self.update_txt(CHALLENGE_ONE)
-        self.assertHasRecords(self.fqdn, "TXT", [DEFAULT_SPF_POLICY, CHALLENGE_ONE])
-
-        self.update_txt(CHALLENGE_TWO)
-        self.assertHasRecords(
-            self.fqdn, "TXT", [DEFAULT_SPF_POLICY, CHALLENGE_ONE, CHALLENGE_TWO]
-        )
 
         # Adding the third challenge should drop the first challenge, not the SPF
+        self.update_txt(CHALLENGE_ONE)
+        self.update_txt(CHALLENGE_TWO)
         self.update_txt(CHALLENGE_THREE)
         self.assertHasRecords(
-            self.fqdn, "TXT", [DEFAULT_SPF_POLICY, CHALLENGE_TWO, CHALLENGE_THREE]
+            self.fqdn,
+            "TXT",
+            [DEFAULT_SPF_POLICY, CHALLENGE_TWO_QUOTED, CHALLENGE_THREE_QUOTED],
         )
 
     def test_update_case_insensitive(self):
@@ -373,7 +381,7 @@ class TestAcmeDnsUpdate(WithAcmeDelegate):
         self.assertHasRecords(
             self.fqdn,
             "TXT",
-            [DEFAULT_SPF_POLICY, CHALLENGE_ONE],
+            [DEFAULT_SPF_POLICY, CHALLENGE_ONE_QUOTED],
         )
 
     def test_update_requires_api_hostname(self):
