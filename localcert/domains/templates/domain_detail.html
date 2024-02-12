@@ -40,8 +40,8 @@
           <td>
             TXT
           </td>
-          <td title="_acme-challenge.{{ record.name }}">
-          _acme-challenge.{{ record.name | strip_domain_name }}
+          <td title="{{ record.name }}">
+          <span class="has-text-weight-semibold">{{ record.name | strip_public_suffix }}</span>.{{ record.name | get_public_suffix }}
           </td>
           <td>
           <!-- TODO -->

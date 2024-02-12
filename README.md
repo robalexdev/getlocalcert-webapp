@@ -31,11 +31,6 @@ Open a shell in the database:
 
     $ docker exec -it --env-file=dev.env mvp-db-1 /bin/bash -c "PGPASSWORD=\${POSTGRES_PASSWORD} psql -U \${POSTGRES_USER}"
     postgres=# CREATE DATABASE "localcert-web";
-    postgres=# CREATE DATABASE "localcert-pdns";
-
-Create a fresh DNS server container (the normal one can't start without the tables):
-
-    $ docker run -it --env-file=dev.env --net localcert-net mvp-pdns /bin/bash -c "PGPASSWORD=\${POSTGRES_PASSWORD} psql -h db -U \${POSTGRES_USER} -d \${LOCALCERT_PDNS_DB_NAME} -a -f /usr/share/doc/pdns-backend-pgsql/schema.pgsql.sql"
 
 Bring up all the containers:
 

@@ -35,6 +35,36 @@ def strip_domain_name(value: str):
 
 
 @register.filter
+def get_zone_name(value: str):
+    if value.endswith("."):
+        value = value[0:-1]
+    parts = value.split(".")
+    return ".".join(parts[-3::])
+
+
+@register.filter
+def strip_public_suffix(value: str):
+    if value.endswith("."):
+        value = value[0:-1]
+    parts = value.split(".")
+    parts.pop()  # net
+    parts.pop()  # localhostcert / localcert
+    if len(parts) == 0:
+        return "@"
+    return ".".join(parts)
+
+
+@register.filter
+def get_public_suffix(value: str):
+    if value.endswith("."):
+        value = value[0:-1]
+    parts = value.split(".")
+    tld = parts.pop()  # net
+    domain = parts.pop()  # localhostcert / localcert
+    return domain + "." + tld
+
+
+@register.filter
 def startswith(value: str, arg: str):
     return value.startswith(arg)
 

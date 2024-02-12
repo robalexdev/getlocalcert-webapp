@@ -11,11 +11,10 @@
   <ul>
     <li><a href="/">getlocalcert</a></li>
     <li><a href="{% url 'list_zones'%}">My subdomains</a></li>
-    <li><a href="{% url 'describe_zone' %}?zone_name={{form.zone_name.value}}">{{ form.zone_name.value | strip_trailing_dot }}</a></li>
+    <li><a href="{% url 'describe_zone' %}?zone_name={{form.zone_name.value | get_zone_name }}.">{{ form.zone_name.value | get_zone_name }}</a></li>
     <li class="is-active"><a href="#" aria-current="page">Delete Record</a></li>
   </ul>
 </nav>
-
 
 <section class="hero is-small">
   <div class="hero-body">
@@ -28,84 +27,31 @@
 </p>
 
 <form
-    action="{% url 'delete_record' %}"
-    method="post">
+   action="{% url 'delete_record' %}"
+   method="post">
 
-{% csrf_token %}
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {{ form.zone_name }}
+  {{ form.zone_name.errors }}
+  {{ form.rr_content.errors }}
 
-<!-- TODO -->
-{{ form.non_field_errors }}
+  <!-- TODO delete needs just the zone... -->
 
-<div class="field is-horizontal">
-    <div class="field-label is-normal">
-        <label class="label">Name</label>
-    </div>
-    <div class="field-body">
-        <div class="field">
-          <p class="control">
-            {{ form.zone_name }}
-            <input
-                type="text"
-                readonly
-                class="input"
-                value="_acme-challenge.{{ form.zone_name.value | strip_trailing_dot }}">
-          </p>
-          {{ form.zone_name.errors }}
-        </div>
-    </div>
-</div>
+  <p class="block has-weight-semibold">
+    {{ form.zone_name.value | strip_trailing_dot }}
+    &emsp;
+    TXT
+    &emsp;
+    {{ form.rr_content.value }}
+  </p>
 
-<div class="field is-horizontal">
-    <div class="field-label is-normal">
-        <label class="label">Type</label>
-    </div>
-    <div class="field-body">
-        <div class="field">
-          <p class="control">
-            <input
-                type="text"
-                readonly
-                class="input"
-                value="TXT">
-          </p>
-        </div>
-    </div>
-</div>
-
-<div class="field is-horizontal">
-    <div class="field-label is-normal">
-        <label class="label">Content</label>
-    </div>
-    <div class="field-body">
-        <div class="field">
-          <p class="control">
-            <input
-                type="text"
-                name="rr_content"
-                value="{{ form.rr_content.value | strip_quot }}"
-                hidden>
-            <input
-                type="text"
-                readonly
-                class="input"
-                value="{{ form.rr_content.value }}">
-          </p>
-          {{ form.rr_content.errors }}
-        </div>
-    </div>
-</div>
-
-<div class="field is-horizontal">
-    <div class="field-label is-normal">
-        <label class="label"></label>
-    </div>
   <div class="field-body">
     <div class="buttons">
       <input class="button is-danger" type="submit" value="Delete Record">
-      <a href="{% url 'describe_zone' %}?zone_name={{form.zone_name.value}}" class="button is-secondary">Cancel</a>
+      <a href="{% url 'describe_zone' %}?zone_name={{form.zone_name.value | get_zone_name }}." class="button is-secondary">Cancel</a>
     </div>
   </div>
-</div>
 </form>
 
 </div>
