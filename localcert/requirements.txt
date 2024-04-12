@@ -8,7 +8,7 @@ Django==4.2.11
 django-allauth==0.58.1
 django-csp==3.7
 gunicorn==21.2.0
-idna==3.4
+idna==3.7
 oauthlib==3.2.2
 psycopg2-binary==2.9.9
 pycparser==2.21
