@@ -549,6 +549,11 @@ def delete_record(
 def show_stats(
     request: HttpRequest,
 ) -> HttpResponse:
+
+    # Access control
+    if request.user.username != "robalexdev":
+        return HttpResponse("Not found", status=404)
+
     now = timezone.now()
     one_day_ago = now - datetime.timedelta(days=1)
     one_week_ago = now - datetime.timedelta(days=7)
