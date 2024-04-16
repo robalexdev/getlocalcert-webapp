@@ -593,10 +593,9 @@ def show_stats(
     stats = []
 
     stats.append(["Newest Users"])
-    for user in User.objects.order_by("-date_joined")[:10:-1]:
+    for user in User.objects.order_by("-date_joined")[:10]:
         stats.append(
             [
-                user.id,
                 user.username,
                 user.email,
                 user.date_joined,
@@ -605,10 +604,11 @@ def show_stats(
         )
 
     stats.append(["Recent Users"])
-    for user in User.objects.order_by("-last_login")[:10:-1]:
+    for user in User.objects.filter(last_login__isnull=False).order_by("-last_login")[
+        :10
+    ]:
         stats.append(
             [
-                user.id,
                 user.username,
                 user.email,
                 user.date_joined,
@@ -660,7 +660,7 @@ def show_stats(
     )
 
     stats.append(["Newest Zones"])
-    for zone in Zone.objects.order_by("-created")[:10:-1]:
+    for zone in Zone.objects.order_by("-created")[:10]:
         u = zone.owner.username if zone.owner else "-"
         stats.append(
             [
@@ -673,7 +673,7 @@ def show_stats(
         )
 
     stats.append(["Recently Updated Zones"])
-    for zone in Zone.objects.order_by("-updated")[:10:-1]:
+    for zone in Zone.objects.order_by("-updated")[:10]:
         u = zone.owner.username if zone.owner else "-"
         stats.append(
             [
@@ -686,7 +686,7 @@ def show_stats(
         )
 
     stats.append(["Recently Updated Zones (older than a month)"])
-    for zone in Zone.objects.filter(created__gt=thirty_days_ago).order_by("-updated")[
+    for zone in Zone.objects.filter(created__lt=thirty_days_ago).order_by("-updated")[
         :10:-1
     ]:
         u = zone.owner.username if zone.owner else "-"
