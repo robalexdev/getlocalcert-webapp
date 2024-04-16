@@ -617,9 +617,9 @@ def show_stats(
         )
 
     stats.append(["Returning Users (30 days)"])
-    for user in User.objects.filter(date_joined__lt=thirty_days_ago).order_by(
-        "-last_login"
-    )[:10:-1]:
+    for user in User.objects.filter(
+        date_joined__lt=thirty_days_ago, last_login__isnull=False
+    ).order_by("-last_login")[:10:-1]:
         stats.append(
             [
                 user.id,
@@ -631,9 +631,9 @@ def show_stats(
         )
 
     stats.append(["Returning Users (90 days)"])
-    for user in User.objects.filter(date_joined__lt=ninety_days_ago).order_by(
-        "-last_login"
-    )[:10:-1]:
+    for user in User.objects.filter(
+        date_joined__lt=ninety_days_ago, last_login__isnull=False
+    ).order_by("-last_login")[:10:-1]:
         stats.append(
             [
                 user.id,
