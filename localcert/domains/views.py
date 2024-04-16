@@ -549,7 +549,6 @@ def delete_record(
 def show_stats(
     request: HttpRequest,
 ) -> HttpResponse:
-
     # Access control
     if request.user.username != "robalexdev":
         return HttpResponse("Not found", status=404)
