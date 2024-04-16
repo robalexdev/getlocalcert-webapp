@@ -33,7 +33,10 @@
         {% for row in stats %}
         <tr>
           {% if row|length == 1 %}
+            <th></th>
+            <th></th>
             <th>{{ row.0 }}</th>
+            <th></th>
           {% else %}
             {% for item in row %}
               <td>{{ item }}</td>
