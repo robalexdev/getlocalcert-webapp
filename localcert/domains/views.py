@@ -661,10 +661,11 @@ def show_stats(
 
     stats.append(["Newest Zones"])
     for zone in Zone.objects.order_by("created")[:10:-1]:
+        u = zone.owner.username if zone.owner else "-"
         stats.append(
             [
                 zone.name,
-                zone.owner.username,
+                u,
                 zone.created,
                 zone.updated,
                 zone.is_delegate,
