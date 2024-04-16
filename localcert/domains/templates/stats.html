@@ -32,12 +32,12 @@
     <tbody>
     {% for row in stats %}
       {% if row|length == 1 %}
-        <tr></tr>
-        <tr></tr>
+        <tr><td>.</td></tr>
+        <tr><td>.</td></tr>
         <tr>
           <th>{{ row.0 }}</th>
         </tr>
-        <tr></tr>
+        <tr><td>.</td></tr>
       {% else %}
         <tr>
         {% for item in row %}
