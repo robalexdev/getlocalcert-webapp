@@ -116,6 +116,7 @@ class WithUserTests(WithDigClient, TransactionTestCase):
     def setUp(self):
         super().setUp()
 
+        self.adminUser = User.objects.create(username="robalexdev")
         self.testUser = User.objects.create(username=str(uuid4()))
         self.wrongUser = User.objects.create(username=str(uuid4()))
 
