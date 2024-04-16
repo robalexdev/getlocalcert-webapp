@@ -30,20 +30,22 @@
       </tr>
     </thead>
     <tbody>
-        {% for row in stats %}
+    {% for row in stats %}
+      {% if row|length == 1 %}
+        <tr></tr>
+        <tr></tr>
         <tr>
-          {% if row|length == 1 %}
-            <th></th>
-            <th></th>
-            <th>{{ row.0 }}</th>
-            <th></th>
-          {% else %}
-            {% for item in row %}
-              <td>{{ item }}</td>
-            {% endfor %}
-          {% endif %}
+          <th>{{ row.0 }}</th>
         </tr>
+        <tr></tr>
+      {% else %}
+        <tr>
+        {% for item in row %}
+            <td>{{ item }}</td>
         {% endfor %}
+        </tr>
+      {% endif %}
+    {% endfor %}
     </tbody>
     </table>
   </div>
