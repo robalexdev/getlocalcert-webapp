@@ -7,7 +7,7 @@ defusedxml==0.7.1
 Django==5.0.4
 django-allauth==0.61.1
 django-csp==3.8
-gunicorn==21.2.0
+gunicorn==22.0.0
 idna==3.7
 oauthlib==3.2.2
 psycopg2-binary==2.9.9
