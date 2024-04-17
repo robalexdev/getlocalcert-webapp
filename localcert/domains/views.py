@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 
+from django.db.models import F
 from django.urls import reverse
 from django.utils import timezone
 from requests.structures import CaseInsensitiveDict
@@ -556,8 +557,10 @@ def show_stats(
     now = timezone.now()
     one_day_ago = now - datetime.timedelta(days=1)
     one_week_ago = now - datetime.timedelta(days=7)
-    thirty_days_ago = now - datetime.timedelta(days=30)
-    ninety_days_ago = now - datetime.timedelta(days=90)
+    thirty_days = datetime.timedelta(days=30)
+    ninety_days = datetime.timedelta(days=90)
+    thirty_days_ago = now - thirty_days
+    ninety_days_ago = now - ninety_days
 
     last_created_user = User.objects.order_by("date_joined").last()
     last_login_user = User.objects.order_by("last_login").last()
@@ -592,7 +595,7 @@ def show_stats(
 
     stats = []
 
-    stats.append(["Newest Users"])
+    stats.append(["Newest Users", False])
     for user in User.objects.order_by("-date_joined")[:10]:
         stats.append(
             [
@@ -602,8 +605,9 @@ def show_stats(
                 user.last_login,
             ]
         )
+    stats.append([])
 
-    stats.append(["Recent Users"])
+    stats.append(["Recent Users", False])
     for user in User.objects.filter(last_login__isnull=False).order_by("-last_login")[
         :10
     ]:
@@ -615,39 +619,87 @@ def show_stats(
                 user.last_login,
             ]
         )
+    stats.append([])
 
-    stats.append(["Returning Users (30 days)"])
+    stats.append(["Returning Users (30 days)", False])
     for user in User.objects.filter(
-        date_joined__lt=thirty_days_ago, last_login__isnull=False
+        date_joined__lt=thirty_days_ago,
+        last_login__isnull=False,
+        last_login__gt=F("date_joined") + thirty_days,
     ).order_by("-last_login")[:10:-1]:
         stats.append(
             [
-                user.id,
                 user.username,
                 user.email,
                 user.date_joined,
                 user.last_login,
             ]
         )
+    stats.append([])
 
-    stats.append(["Returning Users (90 days)"])
+    stats.append(["Returning Users (90 days)", False])
     for user in User.objects.filter(
-        date_joined__lt=ninety_days_ago, last_login__isnull=False
+        date_joined__lt=ninety_days_ago,
+        last_login__isnull=False,
+        last_login__gt=F("date_joined") + ninety_days,
     ).order_by("-last_login")[:10:-1]:
         stats.append(
             [
-                user.id,
                 user.username,
                 user.email,
                 user.date_joined,
                 user.last_login,
             ]
         )
+    stats.append([])
 
-    stats.append(["Users"])
+    stats.append(["Newest Zones", False])
+    for zone in Zone.objects.order_by("-created")[:10]:
+        u = zone.owner.username if zone.owner else "-"
+        stats.append(
+            [
+                zone.name,
+                u,
+                zone.created,
+                zone.updated,
+                zone.is_delegate,
+            ]
+        )
+    stats.append([])
+
+    stats.append(["Recently Updated Zones", False])
+    for zone in Zone.objects.order_by("-updated")[:10]:
+        u = zone.owner.username if zone.owner else "-"
+        stats.append(
+            [
+                zone.name,
+                u,
+                zone.created,
+                zone.updated,
+                zone.is_delegate,
+            ]
+        )
+    stats.append([])
+
+    stats.append(["Recently Updated Zones (older than a month)", False])
+    for zone in Zone.objects.filter(created__lt=thirty_days_ago).order_by("-updated")[
+        :10:-1
+    ]:
+        u = zone.owner.username if zone.owner else "-"
+        stats.append(
+            [
+                zone.name,
+                u,
+                zone.created,
+                zone.updated,
+                zone.is_delegate,
+            ]
+        )
+    stats.append([])
+
+    stats.append(["Users created", True])
     stats.append(
         [
-            "- created",
             User.objects.filter(date_joined__gt=one_day_ago).count(),
             User.objects.filter(date_joined__gt=one_week_ago).count(),
             User.objects.filter(date_joined__gt=thirty_days_ago).count(),
@@ -656,9 +708,11 @@ def show_stats(
             "" if last_created_user is None else last_created_user.date_joined,
         ]
     )
+    stats.append([])
+
+    stats.append(["Users logged in", True])
     stats.append(
         [
-            "- logged in",
             User.objects.filter(last_login__gt=one_day_ago).count(),
             User.objects.filter(last_login__gt=one_week_ago).count(),
             User.objects.filter(last_login__gt=thirty_days_ago).count(),
@@ -667,9 +721,11 @@ def show_stats(
             "" if last_login_user is None else last_login_user.last_login,
         ]
     )
+    stats.append([])
+
+    stats.append(["Returning users (30 days)", True])
     stats.append(
         [
-            "- returning users (30 days)",
             User.objects.filter(
                 last_login__gt=one_day_ago, date_joined__gt=thirty_days_ago
             ).count(),
@@ -686,52 +742,11 @@ def show_stats(
             "",
         ]
     )
+    stats.append([])
 
-    stats.append(["Newest Zones"])
-    for zone in Zone.objects.order_by("-created")[:10]:
-        u = zone.owner.username if zone.owner else "-"
-        stats.append(
-            [
-                zone.name,
-                u,
-                zone.created,
-                zone.updated,
-                zone.is_delegate,
-            ]
-        )
-
-    stats.append(["Recently Updated Zones"])
-    for zone in Zone.objects.order_by("-updated")[:10]:
-        u = zone.owner.username if zone.owner else "-"
-        stats.append(
-            [
-                zone.name,
-                u,
-                zone.created,
-                zone.updated,
-                zone.is_delegate,
-            ]
-        )
-
-    stats.append(["Recently Updated Zones (older than a month)"])
-    for zone in Zone.objects.filter(created__lt=thirty_days_ago).order_by("-updated")[
-        :10:-1
-    ]:
-        u = zone.owner.username if zone.owner else "-"
-        stats.append(
-            [
-                zone.name,
-                u,
-                zone.created,
-                zone.updated,
-                zone.is_delegate,
-            ]
-        )
-
-    stats.append(["Zones (owned)"])
+    stats.append(["Zones created (owned)", True])
     stats.append(
         [
-            "- created",
             Zone.objects.filter(created__gt=one_day_ago, owner__isnull=False).count(),
             Zone.objects.filter(created__gt=one_week_ago, owner__isnull=False).count(),
             Zone.objects.filter(
@@ -744,9 +759,11 @@ def show_stats(
             "" if last_owned_zone_created is None else last_owned_zone_created.created,
         ]
     )
+    stats.append([])
+
+    stats.append(["Zones updated (owned)", True])
     stats.append(
         [
-            "- updated",
             Zone.objects.filter(updated__gt=one_day_ago, owner__isnull=False).count(),
             Zone.objects.filter(updated__gt=one_week_ago, owner__isnull=False).count(),
             Zone.objects.filter(
@@ -759,11 +776,11 @@ def show_stats(
             "" if last_owned_zone_updated is None else last_owned_zone_updated.updated,
         ]
     )
+    stats.append([])
 
-    stats.append(["Zones (anonymous)"])
+    stats.append(["Zones created (anonymous)", True])
     stats.append(
         [
-            "- created",
             Zone.objects.filter(
                 created__gt=one_day_ago, owner__isnull=True, is_delegate=False
             ).count(),
@@ -780,9 +797,11 @@ def show_stats(
             "" if last_anon_zone_created is None else last_anon_zone_created.created,
         ]
     )
+    stats.append([])
+
+    stats.append(["Zones updated (anonymous)", True])
     stats.append(
         [
-            "- updated",
             Zone.objects.filter(
                 updated__gt=one_day_ago, owner__isnull=True, is_delegate=False
             ).count(),
@@ -799,11 +818,11 @@ def show_stats(
             "" if last_anon_zone_updated is None else last_anon_zone_updated.updated,
         ]
     )
+    stats.append([])
 
-    stats.append(["Zones (delegate)"])
+    stats.append(["Zones created (delegate)", True])
     stats.append(
         [
-            "- created",
             Zone.objects.filter(
                 created__gt=one_day_ago, owner__isnull=True, is_delegate=True
             ).count(),
@@ -822,9 +841,11 @@ def show_stats(
             else last_delegate_zone_created.created,
         ]
     )
+    stats.append([])
+
+    stats.append(["Zones updated (delegate)", True])
     stats.append(
         [
-            "- updated",
             Zone.objects.filter(
                 updated__gt=one_day_ago, owner__isnull=True, is_delegate=True
             ).count(),
@@ -843,13 +864,11 @@ def show_stats(
             else last_delegate_zone_updated.updated,
         ]
     )
+    stats.append([])
 
-    stats.append(["Zones (any)"])
+    stats.append(["Zones updated in the last 30 days, active since [time]", True])
     stats.append(
         [
-            "- updated in the last 30 days, active since [time]",
-            "",
-            "",
             Zone.objects.filter(
                 updated__lt=thirty_days_ago,
                 created__gt=thirty_days_ago,
@@ -858,15 +877,13 @@ def show_stats(
                 updated__lt=thirty_days_ago,
                 created__gt=ninety_days_ago,
             ).count(),
-            "",
-            "",
-        ]
+        ],
     )
+    stats.append([])
 
-    stats.append(["ZoneApiKey"])
+    stats.append(["ZoneApiKey created", True])
     stats.append(
         [
-            "- created",
             ZoneApiKey.objects.filter(created__gt=one_day_ago).count(),
             ZoneApiKey.objects.filter(created__gt=one_week_ago).count(),
             ZoneApiKey.objects.filter(created__gt=thirty_days_ago).count(),
@@ -875,9 +892,11 @@ def show_stats(
             "" if last_api_key_created is None else last_api_key_created.created,
         ]
     )
+    stats.append([])
+
+    stats.append(["ZoneApiKey used", True])
     stats.append(
         [
-            "- used",
             ZoneApiKey.objects.filter(last_used__gt=one_day_ago).count(),
             ZoneApiKey.objects.filter(last_used__gt=one_week_ago).count(),
             ZoneApiKey.objects.filter(last_used__gt=thirty_days_ago).count(),
@@ -886,6 +905,7 @@ def show_stats(
             "" if last_api_key_used is None else last_api_key_used.last_used,
         ]
     )
+    stats.append([])
 
     return render(
         request,

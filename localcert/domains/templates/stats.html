@@ -17,27 +17,28 @@
   <div class="hero-body">
     <h1 class="title is-3">Stats</h1>
 
-    <table class="table is-striped is-hoverable is-fullwidth">
-    <thead>
-      <tr>
-        <th>Resource</th>
-        <th>1 day</th>
-        <th>1 week</th>
-        <th>30 days</th>
-        <th>90 days</th>
-        <th>Total</th>
-        <th>Last</th>
-      </tr>
-    </thead>
-    <tbody>
     {% for row in stats %}
-      {% if row|length == 1 %}
-        <tr><td>.</td></tr>
-        <tr><td>.</td></tr>
+      {% if row|length == 2 %}
+      <h2 class="title is-4">
+      {{ row.0 }}
+      </h2>
+      <table class="table is-striped is-hoverable is-fullwidth">
+      {% if row.1 %}
+      <thead>
         <tr>
-          <th>{{ row.0 }}</th>
+          <th>1 day</th>
+          <th>1 week</th>
+          <th>30 days</th>
+          <th>90 days</th>
+          <th>Total</th>
+          <th>Last</th>
         </tr>
-        <tr><td>.</td></tr>
+      </thead>
+      {% endif %}
+      <tbody>
+      {% else if row|length == 0 %}
+      </tbody>
+      </table>
       {% else %}
         <tr>
         {% for item in row %}
@@ -46,8 +47,6 @@
         </tr>
       {% endif %}
     {% endfor %}
-    </tbody>
-    </table>
   </div>
 </section>
 
