@@ -682,9 +682,10 @@ def show_stats(
     stats.append([])
 
     stats.append(["Recently Updated Zones (older than a month)", False])
-    for zone in Zone.objects.filter(created__lt=thirty_days_ago).order_by("-updated")[
-        :10:-1
-    ]:
+    for zone in Zone.objects.filter(
+        created__lt=thirty_days_ago,
+        updated__gt=F("created") + thirty_days,
+    ).order_by("-updated")[:10]:
         u = zone.owner.username if zone.owner else "-"
         stats.append(
             [
