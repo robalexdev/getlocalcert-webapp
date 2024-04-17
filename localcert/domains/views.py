@@ -877,6 +877,8 @@ def show_stats(
                 updated__lt=thirty_days_ago,
                 created__gt=ninety_days_ago,
             ).count(),
+            "",
+            "",
         ],
     )
     stats.append([])

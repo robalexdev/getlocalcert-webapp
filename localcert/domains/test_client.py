@@ -703,7 +703,7 @@ class StatsTests(WithApiKey):
     def test_can_show_stats(self):
         self.client.force_login(self.adminUser)
         response = self.client.get(reverse(show_stats))
-        self.assertContains(response, "Users", html=True)
+        self.assertContains(response, "Recent Users", html=True)
 
     def test_cannot_view_stats_if_not_admin(self):
         self.client.force_login(self.testUser)
