@@ -5,7 +5,7 @@ charset-normalizer==3.3.2
 cryptography==42.0.5
 defusedxml==0.7.1
 Django==5.0.4
-django-allauth==0.61.1
+django-allauth==0.62.1
 django-csp==3.8
 gunicorn==22.0.0
 idna==3.7
