@@ -2,10 +2,10 @@ asgiref==3.8.1
 certifi==2024.2.2
 cffi==1.16.0
 charset-normalizer==3.3.2
-cryptography==42.0.5
+cryptography==42.0.7
 defusedxml==0.7.1
-Django==5.0.4
-django-allauth==0.61.1
+Django==5.0.6
+django-allauth==0.63.1
 django-csp==3.8
 gunicorn==22.0.0
 idna==3.7
