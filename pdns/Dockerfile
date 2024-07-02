@@ -1,5 +1,5 @@
 # Move to a pinned latest pdns 4.5 is available
-FROM ubuntu:24.04
+FROM ubuntu:22.04
 
 RUN apt update && \
     apt install -y --no-install-recommends pdns-server pdns-backend-pgsql \
