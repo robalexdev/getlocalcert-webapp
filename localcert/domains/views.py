@@ -552,7 +552,7 @@ def show_stats(
 ) -> HttpResponse:
     # Access control
     ALLOWED_GITHUB_USERS = ["robalexdev", "ralexander-phi"]
-    if request.user.username in ALLOWED_GITHUB_USERS:
+    if request.user.username not in ALLOWED_GITHUB_USERS:
         return HttpResponse("Not found", status=404)
 
     now = timezone.now()
