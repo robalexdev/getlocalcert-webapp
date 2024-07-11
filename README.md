@@ -140,7 +140,9 @@ These are added to getlocalcert.net as ns1/ns2 such that the IP address is actua
 
 In one terminal run:
 
-    $ source test.env ; docker compose -f docker-compose-test.yml --env-file=test.env up
+    $ source test.env
+    $ docker compose -f docker-compose-test.yml --env-file=test.env build
+    $ docker compose -f docker-compose-test.yml --env-file=test.env up
 
 In another run the tests (or commit, which triggers the tests):
 
