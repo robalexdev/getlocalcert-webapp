@@ -389,7 +389,7 @@ def api_health(
     # Check a random host name, it should not resolve
     # Random name is used to ensure uncached responses
     try:
-        dne_result = dns_query_A(str(uuid4()) + ".localhostcert.net")
+        dns_query_A(str(uuid4()) + ".localhostcert.net")
         logging.warning("Query unexpectedly resolved")
         ext_dns_a_healthy = False
     except dns.resolver.NXDOMAIN:
