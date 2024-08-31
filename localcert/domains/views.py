@@ -1,4 +1,5 @@
 import datetime
+import dns.resolver
 import json
 import logging
 
@@ -9,6 +10,7 @@ from requests.structures import CaseInsensitiveDict
 
 from .subdomain_utils import Credentials, create_instant_subdomain, set_up_pdns_for_zone
 from .validators import validate_acme_dns01_txt_value, validate_label
+from .network import dns_query_A, dns_query_TXT
 
 from .constants import (
     ACME_CHALLENGE_LABEL,
@@ -42,6 +44,7 @@ from .utils import (
     sort_records_key,
     build_url,
 )
+from uuid import uuid4
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count
@@ -383,7 +386,36 @@ def api_instant_subdomain(
 def api_health(
     _: HttpRequest,
 ) -> JsonResponse:
-    return JsonResponse({"healthy": True})
+    # Check a random host name, it should not resolve
+    # Random name is used to ensure uncached responses
+    try:
+        dne_result = dns_query_A(str(uuid4()) + ".localhostcert.net")
+        logging.warning("Query unexpectedly resolved")
+        ext_dns_a_healthy = False
+    except dns.resolver.NXDOMAIN:
+        ext_dns_a_healthy = True
+    # Check a TXT for a known domain (short TTL)
+    try:
+        txt_result = dns_query_TXT(
+            "_acme-challenge.test-txt-lookup-known-value.localhostcert.net"
+        )
+        ext_dns_txt_healthy = (
+            b"testtestaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" in txt_result
+        )
+    except Exception as e:
+        logging.warning(e)
+        ext_dns_txt_healthy = False
+
+    healthy = ext_dns_a_healthy and ext_dns_txt_healthy
+    status = 200 if healthy else 500
+    return JsonResponse(
+        {
+            "healthy": healthy,
+            "a": ext_dns_a_healthy,
+            "b": ext_dns_txt_healthy,
+        },
+        status=status,
+    )
 
 
 # acme-dns compat API to check health

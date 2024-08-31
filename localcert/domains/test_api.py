@@ -38,7 +38,9 @@ class TestExtraApi(WithApiKey):
     def test_health(self):
         response = self.client.get(reverse(api_health))
         self.assertEqual(200, response.status_code)
-        self.assertEqual('{"healthy": true}', response.content.decode("utf-8"))
+        self.assertEqual(
+            '{"healthy": true, "a": true, "b": true}', response.content.decode("utf-8")
+        )
 
     def test_extra_check(self):
         response = self.client.get(
