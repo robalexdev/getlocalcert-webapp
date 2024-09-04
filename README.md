@@ -182,3 +182,31 @@ XXX this runs the service before the migration is applied, probably want to do i
 * PDNS API - https://doc.powerdns.com/authoritative/http-api/index.html
 * acme-dns - https://github.com/joohoi/acme-dns/
 
+
+## systemd notes
+
+Ubuntu runs a DNS stub resolver locally on port 53.
+This needs to be turned off, in favor of a remote resolver, as it conflicts with PDNS.
+
+Check if it's running:
+
+	$ sudo lsof -i :53
+
+Turn it off:
+
+1. Edit /etc/systemd/resolved.conf
+
+	[Resolve]
+	DNS=1.1.1.1
+	DNSStubListener=no
+
+2. Run:
+
+	$ ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+
+Verify:
+
+	$ curl google.com
+	$ sudo lsof -i :53
+
+
