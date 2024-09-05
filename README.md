@@ -187,6 +187,14 @@ XXX this runs the service before the migration is applied, probably want to do i
 * acme-dns - https://github.com/joohoi/acme-dns/
 
 
+## ACME notes
+
+Manually create acme.json in PROD
+
+    $ echo "{}" > acme.json
+    $ chmod 0600 acme.json
+
+
 ## systemd notes
 
 Ubuntu runs a DNS stub resolver locally on port 53.
