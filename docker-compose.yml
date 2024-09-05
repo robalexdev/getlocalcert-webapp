@@ -59,17 +59,22 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.localcert-web.rule=(Host(`console.getlocalcert.net`)) || (Host(`api.getlocalcert.net`) && PathPrefix(`/api/`))"
+      - "traefik.http.routers.localcert-web.tls=true"
+      - "traefik.http.routers.localcert-web.tls.certresolver=myresolver"
       - "traefik.http.services.localcert-web.loadbalancer.server.port=80"
       - "traefik.docker.network=localcert-net"
+      - "traefik.http.routers.localcert-web.entryPoints=websecure"
 
   reverse-proxy:
     image: traefik:v2.9
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "80:80" # KEEP: needed for Let's Encrypt
+      - "443:443"
     volumes:
       - ./traefik.yml:/etc/traefik/traefik.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./acme.json:/acme.json
     networks:
       localcert-net:
         ipv4_address: 10.33.44.4

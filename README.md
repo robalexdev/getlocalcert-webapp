@@ -167,6 +167,10 @@ Run
     $ ssh <user>@<ip> ./deploy/getlocalcert-webapp/deploy/prod-pull.sh
     $ ssh <user>@<ip> ./deploy/getlocalcert-webapp/deploy/prod-deploy.sh
 
+Consider doing a prune as well to manage disk space:
+
+    $ ssh <user>@<ip> ./deploy/getlocalcert-webapp/deploy/prod-prune.sh
+
 ### With Migrations
 
     $ docker compose --env-file=prod.env build

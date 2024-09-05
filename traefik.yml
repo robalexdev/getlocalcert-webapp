@@ -1,9 +1,8 @@
 entryPoints:
   web:
     address: ":80"
-    forwardedHeaders:
-      trustedIPs:
-        - "10.0.0.0/8"
+  websecure:
+    address: ":443"
 
 providers:
   docker:
@@ -11,6 +10,15 @@ providers:
 
 log:
   level: DEBUG
+
+certificatesResolvers:
+  myresolver:
+    acme:
+      caServer: https://acme-staging-v02.api.letsencrypt.org/directory
+      email: robert@robalexdev.com
+      storage: acme.json
+      httpChallenge:
+        entryPoint: web
 
 accessLog:
   bufferingSize: 10
