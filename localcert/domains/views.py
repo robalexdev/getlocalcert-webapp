@@ -583,7 +583,7 @@ def show_stats(
     request: HttpRequest,
 ) -> HttpResponse:
     # Access control
-    ALLOWED_GITHUB_USERS = ["robalexdev", "ralexander-phi"]
+    ALLOWED_GITHUB_USERS = ["robalexdev", "ralexander-phi", "wdhdev"]
     if request.user.username not in ALLOWED_GITHUB_USERS:
         return HttpResponse("Not found", status=404)
 
@@ -629,7 +629,7 @@ def show_stats(
     stats = []
 
     stats.append(["Newest Users", False])
-    for user in User.objects.order_by("-date_joined")[:10]:
+    for user in User.objects.order_by("-date_joined")[:100]:
         stats.append(
             [
                 user.username,
@@ -642,7 +642,7 @@ def show_stats(
 
     stats.append(["Recent Users", False])
     for user in User.objects.filter(last_login__isnull=False).order_by("-last_login")[
-        :10
+        :100
     ]:
         stats.append(
             [
@@ -659,7 +659,7 @@ def show_stats(
         date_joined__lt=thirty_days_ago,
         last_login__isnull=False,
         last_login__gt=F("date_joined") + thirty_days,
-    ).order_by("-last_login")[:10:-1]:
+    ).order_by("-last_login")[:100:-1]:
         stats.append(
             [
                 user.username,
@@ -675,7 +675,7 @@ def show_stats(
         date_joined__lt=ninety_days_ago,
         last_login__isnull=False,
         last_login__gt=F("date_joined") + ninety_days,
-    ).order_by("-last_login")[:10:-1]:
+    ).order_by("-last_login")[:100:-1]:
         stats.append(
             [
                 user.username,
@@ -687,7 +687,7 @@ def show_stats(
     stats.append([])
 
     stats.append(["Newest Zones", False])
-    for zone in Zone.objects.order_by("-created")[:10]:
+    for zone in Zone.objects.order_by("-created")[:100]:
         u = zone.owner.username if zone.owner else "-"
         stats.append(
             [
@@ -701,7 +701,7 @@ def show_stats(
     stats.append([])
 
     stats.append(["Recently Updated Zones", False])
-    for zone in Zone.objects.order_by("-updated")[:10]:
+    for zone in Zone.objects.order_by("-updated")[:100]:
         u = zone.owner.username if zone.owner else "-"
         stats.append(
             [
@@ -718,7 +718,7 @@ def show_stats(
     for zone in Zone.objects.filter(
         created__lt=thirty_days_ago,
         updated__gt=F("created") + thirty_days,
-    ).order_by("-updated")[:10]:
+    ).order_by("-updated")[:100]:
         u = zone.owner.username if zone.owner else "-"
         stats.append(
             [
